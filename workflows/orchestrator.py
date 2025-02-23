@@ -265,6 +265,9 @@ class InvoiceProcessingWorkflow:
                 invoice_entry.get("validation_errors") or
                 invoice_entry.get("status") == "error"):
                 
+                # Ensure flagged status for review when anomaly is detected
+                invoice_entry["review_status"] = "needs_review"
+                
                 try:
                     if os.path.exists(anomalies_file):
                         with open(anomalies_file, "r") as f:

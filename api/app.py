@@ -75,6 +75,25 @@ async def get_invoices():
         logger.error(f"Error fetching invoices: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch invoices: {str(e)}")
 
+@app.put("/api/invoices/{invoice_number}")
+async def update_invoice(invoice_number: str, update_data: dict):
+    try:
+        if not OUTPUT_FILE.exists():
+            raise HTTPException(status_code=404, detail="No invoices found")
+        with open(OUTPUT_FILE, "r") as f:
+            invoices = json.load(f)
+        for i, inv in enumerate(invoices):
+            if inv.get("invoice_number") == invoice_number:
+                invoices[i].update(update_data)
+                with open(OUTPUT_FILE, "w") as f:
+                    json.dump(invoices, f, indent=4)
+                logger.info(f"Updated invoice {invoice_number}")
+                return {"message": "Updated successfully"}
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    except Exception as e:
+        logger.error(f"Error updating invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/process_all_invoices")
 async def process_all_invoices():
     """Process all invoice PDFs from data/raw/invoices and save their extracted data."""

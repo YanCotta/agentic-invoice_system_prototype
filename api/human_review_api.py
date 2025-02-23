@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional, Dict
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # Load environment variables from .env
 
 # Import the review endpoints and models from review_api
 from api.review_api import get_review as review_get, submit_review as review_post, ReviewRequest, ReviewResponse

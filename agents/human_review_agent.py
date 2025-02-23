@@ -4,8 +4,8 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import logging
 import asyncio
-from datetime import datetime  # Add datetime import
-from config.logging_config import logger  # Import singleton logger
+from datetime import datetime
+from config.logging_config import logger
 from agents.base_agent import BaseAgent
 from models.invoice import InvoiceData
 from models.validation_schema import ValidationResult
@@ -13,6 +13,7 @@ from models.validation_schema import ValidationResult
 class HumanReviewAgent(BaseAgent):
     def __init__(self):
         super().__init__()
+        self.confidence_threshold = 0.9  # Align with new standardized threshold
 
     async def run(self, invoice_data: InvoiceData, validation_result: ValidationResult) -> dict:
         logger.info(f"Reviewing invoice: {invoice_data.invoice_number}")
@@ -22,11 +23,11 @@ class HumanReviewAgent(BaseAgent):
         needs_review = False
         review_reasons = []
 
-        # Check confidence threshold - using standardized 0.9 threshold
-        if invoice_data.confidence < 0.9:
+        # Check confidence threshold
+        if invoice_data.confidence < self.confidence_threshold:
             needs_review = True
-            review_reasons.append(f"Low confidence score: {invoice_data.confidence}")
-            logger.debug(f"Invoice {invoice_data.invoice_number}: Flagged for low confidence {invoice_data.confidence}")
+            review_reasons.append(f"Low confidence score: {invoice_data.confidence:.2f} (threshold: {self.confidence_threshold})")
+            logger.debug(f"Invoice {invoice_data.invoice_number}: Flagged for low confidence {invoice_data.confidence:.2f}")
         
         # Check validation status
         if validation_result.status != "valid":
@@ -34,7 +35,7 @@ class HumanReviewAgent(BaseAgent):
             errors_str = ", ".join(validation_result.errors.keys())
             review_reasons.append(f"Validation failed: {errors_str}")
             logger.debug(f"Invoice {invoice_data.invoice_number}: Failed validation with errors in: {errors_str}")
-            
+        
         # Check for anomalies
         if "anomalies" in validation_result.errors:
             needs_review = True
@@ -60,7 +61,8 @@ class HumanReviewAgent(BaseAgent):
                 "invoice_data": invoice_data.model_dump(),
                 "validation_errors": validation_result.errors,
                 "review_reasons": review_reasons,
-                "review_priority": "high" if len(review_reasons) > 2 else "medium" if len(review_reasons) > 1 else "low"
+                "review_priority": "high" if len(review_reasons) > 2 else "medium" if len(review_reasons) > 1 else "low",
+                "review_date": datetime.now().isoformat()
             }
         else:
             logger.debug(f"Invoice {invoice_data.invoice_number}: Approved - all checks passed")
@@ -89,4 +91,5 @@ if __name__ == "__main__":
         agent = HumanReviewAgent()
         result = await agent.run(sample_data, validation_result)
         print(result)
+    
     asyncio.run(main())

@@ -78,7 +78,8 @@ class InvoiceProcessingWorkflow:
             monitoring.start_timer("validation")
             validation_result = await self._retry_with_backoff(lambda: self.validation_agent.run(extracted_data))
             validation_time = monitoring.stop_timer("validation")
-            logger.info(f"Validation completed: {validation_result}")
+            logger.info(f"Validation result: {validation_result}, time: {validation_time:.2f}s")
+            
         except Exception as e:
             logger.error(f"Validation failed after retries: {str(e)}")
             validation_time = monitoring.stop_timer("validation")
@@ -99,7 +100,7 @@ class InvoiceProcessingWorkflow:
             monitoring.start_timer("matching")
             matching_result = await self._retry_with_backoff(lambda: self.matching_agent.run(extracted_data))
             matching_time = monitoring.stop_timer("matching")
-            logger.info(f"Matching completed: {matching_result}")
+            logger.info(f"Matching result: {matching_result}, time: {matching_time:.2f}s")
         except Exception as e:
             logger.error(f"Matching failed after retries: {str(e)}")
             matching_time = monitoring.stop_timer("matching")
@@ -122,7 +123,7 @@ class InvoiceProcessingWorkflow:
             monitoring.start_timer("review")
             review_result = await self._retry_with_backoff(lambda: self.review_agent.run(extracted_data, validation_result))
             review_time = monitoring.stop_timer("review")
-            logger.info(f"Review completed: {review_result}")
+            logger.info(f"Review result: {review_result}, time: {review_time:.2f}s")
         except Exception as e:
             logger.error(f"Review failed after retries: {str(e)}")
             review_time = monitoring.stop_timer("review")

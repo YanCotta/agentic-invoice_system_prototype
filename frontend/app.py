@@ -78,10 +78,10 @@ elif page == "Review":
     response = requests.get(f"{API_URL}/api/invoices")
     if response.status_code == 200:
         invoices = response.json()
-        flagged = [inv for inv in invoices if float(inv.get("confidence", 1.0)) < 0.9 or inv.get("validation_status") != "valid"]
+        # Updated filter to only include invoices that need human review
+        flagged = [inv for inv in invoices if inv.get("review_status") == "needs_review"]
         for index, inv in enumerate(flagged):
             with st.expander(f"Invoice {inv['invoice_number']} (Confidence: {inv.get('confidence', 1.0):.2f})"):
-                # Replace PDF view link with download button
                 pdf_response = requests.get(f"{API_URL}/api/invoice_pdf/{inv['invoice_number']}")
                 if pdf_response.status_code == 200:
                     st.download_button(
@@ -93,7 +93,6 @@ elif page == "Review":
                 else:
                     st.write("PDF not available")
                 
-                # Form for displaying and editing all invoice fields with unique key
                 with st.form(key=f"form_{index}_{inv['invoice_number']}"):
                     vendor_name = st.text_input("Vendor Name", value=inv.get("vendor_name", ""))
                     invoice_number = st.text_input("Invoice Number", value=inv.get("invoice_number", ""))

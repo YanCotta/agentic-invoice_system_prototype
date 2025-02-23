@@ -16,7 +16,7 @@ class InvoiceData(BaseModel):
     error_message: Optional[str] = Field(None, description="Error message if processing failed")
     po_number: Optional[str] = Field(None, description="Purchase Order reference number")
     tax_amount: Optional[Decimal] = Field(None, description="Tax amount if specified")
-    currency: Optional[str] = Field(None, description="Invoice currency code")
+    currency: Optional[str] = Field("GBP", description="Invoice currency code")
     
     @validator("invoice_date", pre=True)
     def parse_date(cls, value):
@@ -35,6 +35,6 @@ class InvoiceData(BaseModel):
                 "confidence": 0.95,
                 "po_number": "PO-2024-001",
                 "tax_amount": "150.00",
-                "currency": "USD"
+                "currency": "GBP"
             }
         }

@@ -82,17 +82,21 @@ elif page == "Review":
         flagged = [inv for inv in invoices if inv.get("review_status") == "needs_review"]
         for index, inv in enumerate(flagged):
             with st.expander(f"Invoice {inv['invoice_number']} (Confidence: {inv.get('confidence', 1.0):.2f})"):
-                pdf_response = requests.get(f"{API_URL}/api/invoice_pdf/{inv['invoice_number']}")
-                if pdf_response.status_code == 200:
-                    st.download_button(
-                        label="Download PDF",
-                        data=pdf_response.content,
-                        file_name=f"{inv['invoice_number']}.pdf",
-                        mime="application/pdf",
-                        key=f"download_btn_{inv['invoice_number']}_{index}"  # Added unique key
-                    )
+                # Updated to handle PDFs from raw directory
+                if inv.get("original_path"):
+                    pdf_response = requests.get(f"{API_URL}/api/invoice_pdf/{inv['invoice_number']}")
+                    if pdf_response.status_code == 200:
+                        st.download_button(
+                            label="Download PDF",
+                            data=pdf_response.content,
+                            file_name=f"{inv['invoice_number']}.pdf",
+                            mime="application/pdf",
+                            key=f"download_btn_{inv['invoice_number']}_{index}"
+                        )
+                    else:
+                        st.error("PDF not found in raw invoices directory")
                 else:
-                    st.write("PDF not available")
+                    st.warning("Original PDF path not recorded")
                 
                 with st.form(key=f"form_{index}_{inv['invoice_number']}"):
                     vendor_name = st.text_input("Vendor Name", value=inv.get("vendor_name", ""))

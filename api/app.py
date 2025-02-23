@@ -1,8 +1,10 @@
 print("Starting api/app.py")
+from dotenv import load_dotenv
 import sys
-print("sys imported")
 import os
+print("sys imported")
 print("os imported")
+load_dotenv()  # Load environment variables from .env
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 print("Path adjusted")
 from fastapi import FastAPI, UploadFile, File, HTTPException

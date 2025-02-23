@@ -70,6 +70,9 @@ elif page == "Invoices":
                 invoices = response.json()
                 if invoices:
                     df = pd.DataFrame(invoices)
+                    # Add £ symbol to total_amount column if it exists
+                    if 'total_amount' in df.columns:
+                        df['total_amount'] = '£' + df['total_amount'].astype(str)
                     # Updated display columns to include invoice_date
                     display_cols = ["vendor_name", "invoice_number", "invoice_date", "total_amount", "confidence", "total_time"]
                     available_cols = [col for col in display_cols if col in df.columns]

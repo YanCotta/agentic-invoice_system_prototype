@@ -174,9 +174,12 @@ elif page == "Metrics":
         invoices = response.json()
         if invoices:
             df = pd.DataFrame(invoices)
-            # Use .get() to provide defaults for missing fields
+            
+            # Safely calculate average confidence score
             avg_confidence = df.get("confidence", pd.Series([0])).mean()
             total_invoices = len(df)
+            
+            # Safely calculate average processing time
             avg_time = df.get("total_time", pd.Series([0])).mean()
             
             col1, col2, col3 = st.columns(3)
@@ -192,7 +195,7 @@ elif page == "Metrics":
                 st.subheader("Confidence Score Distribution")
                 st.bar_chart(df["confidence"].value_counts())
             
-            # Processing Times
+            # Processing Times with safe handling of missing or None values
             st.subheader("Processing Times")
             times_df = pd.DataFrame([{
                 "Invoice": inv.get("invoice_number", "Unknown"),
@@ -202,6 +205,7 @@ elif page == "Metrics":
                 "Review (s)": float(inv.get("review_time", 0.0) or 0.0),
                 "Total (s)": float(inv.get("total_time", 0.0) or 0.0)
             } for inv in invoices])
+            
             st.table(times_df.style.format({
                 "Extraction (s)": "{:.2f}",
                 "Validation (s)": "{:.2f}",

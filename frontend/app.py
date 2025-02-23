@@ -196,11 +196,11 @@ elif page == "Metrics":
             st.subheader("Processing Times")
             times_df = pd.DataFrame([{
                 "Invoice": inv.get("invoice_number", "Unknown"),
-                "Extraction (s)": inv.get("extraction_time", 0),
-                "Validation (s)": inv.get("validation_time", 0),
-                "Matching (s)": inv.get("matching_time", 0),
-                "Review (s)": inv.get("review_time", 0),
-                "Total (s)": inv.get("total_time", 0)
+                "Extraction (s)": float(inv.get("extraction_time", 0.0) or 0.0),
+                "Validation (s)": float(inv.get("validation_time", 0.0) or 0.0),
+                "Matching (s)": float(inv.get("matching_time", 0.0) or 0.0),
+                "Review (s)": float(inv.get("review_time", 0.0) or 0.0),
+                "Total (s)": float(inv.get("total_time", 0.0) or 0.0)
             } for inv in invoices])
             st.table(times_df.style.format({
                 "Extraction (s)": "{:.2f}",
@@ -208,7 +208,7 @@ elif page == "Metrics":
                 "Matching (s)": "{:.2f}",
                 "Review (s)": "{:.2f}",
                 "Total (s)": "{:.2f}"
-            }))
+            }, na_rep="0.00"))
         else:
             st.info("No invoices available yet.")
     else:

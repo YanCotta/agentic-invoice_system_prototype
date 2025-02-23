@@ -21,6 +21,7 @@ from glob import glob  # added for process_all_invoices endpoint
 from fastapi.responses import FileResponse
 import shutil
 import atexit
+from datetime import datetime  # Add datetime import
 
 logger = logging.getLogger("InvoiceProcessing")
 
@@ -104,15 +105,35 @@ async def update_invoice(invoice_number: str, update_data: dict):
     try:
         if not OUTPUT_FILE.exists():
             raise HTTPException(status_code=404, detail="No invoices found")
+        
         with open(OUTPUT_FILE, "r") as f:
             invoices = json.load(f)
+        
+        # Find and update the invoice
         for i, inv in enumerate(invoices):
             if inv.get("invoice_number") == invoice_number:
+                # Preserve certain fields that shouldn't be overwritten
+                preserved_fields = ["original_path", "extraction_time", "validation_time", "matching_time"]
+                for field in preserved_fields:
+                    if field in inv and field not in update_data:
+                        update_data[field] = inv[field]
+                
+                # Update resolution fields
+                if update_data.get("review_status") in ["approved", "rejected"]:
+                    update_data["resolution_date"] = datetime.now().isoformat()
+                    if "review_notes" in update_data:
+                        update_data["resolution_notes"] = update_data["review_notes"]
+                
+                # Update the invoice
                 invoices[i].update(update_data)
+                
+                # Write back to file
                 with open(OUTPUT_FILE, "w") as f:
                     json.dump(invoices, f, indent=4)
-                logger.info(f"Updated invoice {invoice_number}")
+                
+                logger.info(f"Updated invoice {invoice_number} with review status: {update_data.get('review_status')}")
                 return {"message": "Updated successfully"}
+        
         raise HTTPException(status_code=404, detail="Invoice not found")
     except Exception as e:
         logger.error(f"Error updating invoice: {str(e)}")

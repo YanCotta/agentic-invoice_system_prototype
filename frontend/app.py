@@ -14,6 +14,16 @@ page = st.sidebar.radio("Go to", ["Upload", "Invoices", "Review", "Metrics"])
 if page == "Upload":
     st.header("Upload Invoice")
     uploaded_file = st.file_uploader("Choose a PDF invoice", type="pdf")
+    
+    # New: Process All Invoices button
+    if st.button("Process All Invoices"):
+        try:
+            response = requests.get(f"{API_URL}/api/process_all_invoices")
+            response.raise_for_status()
+            st.success("Processed all invoices!")
+        except requests.RequestException as e:
+            st.error(f"Failed to process all invoices: {str(e)}")
+    
     if uploaded_file:
         with st.spinner("Processing invoice..."):
             response = requests.post(f"{API_URL}/api/upload_invoice", files={"file": uploaded_file})
@@ -40,7 +50,8 @@ elif page == "Invoices":
                 invoices = response.json()
                 if invoices:
                     df = pd.DataFrame(invoices)
-                    display_cols = ["vendor_name", "invoice_number", "total_amount", "confidence", "total_time"]
+                    # Updated display columns to include invoice_date
+                    display_cols = ["vendor_name", "invoice_number", "invoice_date", "total_amount", "confidence", "total_time"]
                     available_cols = [col for col in display_cols if col in df.columns]
                     styled_df = df[available_cols].style.applymap(
                         lambda x: 'color: green' if float(x) > 0.9 else 'color: red', subset=['confidence']

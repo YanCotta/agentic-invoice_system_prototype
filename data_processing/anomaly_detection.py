@@ -21,40 +21,53 @@ class AnomalyDetector:
 
     def detect_anomalies(self, invoice_data: InvoiceData) -> dict:
         """Detect anomalies in invoice data and save them."""
+        logger.info(f"Starting anomaly detection for invoice {invoice_data.invoice_number}")
         anomalies = {}
         
         # Check for null or empty values
         if not invoice_data.vendor_name:
             anomalies["vendor_name"] = "Missing vendor name"
+            logger.debug(f"Invoice {invoice_data.invoice_number}: Missing vendor name")
+            
         if not invoice_data.invoice_number:
             anomalies["invoice_number"] = "Missing invoice number"
+            logger.debug("Invoice number is missing")
         
         # Check for unreasonable values
         if invoice_data.total_amount <= Decimal('0'):
             anomalies["total_amount"] = f"Invalid amount: {invoice_data.total_amount}"
+            logger.debug(f"Invoice {invoice_data.invoice_number}: Negative or zero amount")
         elif invoice_data.total_amount > Decimal('1000000'):
             anomalies["total_amount"] = f"Unusually high amount: {invoice_data.total_amount}"
+            logger.debug(f"Invoice {invoice_data.invoice_number}: Amount exceeds 1M")
         
-        # Check confidence scores
-        if invoice_data.confidence < 0.8:
+        # Check confidence scores - standardized to 0.9 threshold
+        if invoice_data.confidence < 0.9:
             anomalies["confidence"] = f"Low confidence score: {invoice_data.confidence}"
+            logger.debug(f"Invoice {invoice_data.invoice_number}: Low confidence {invoice_data.confidence}")
         
         # Date validation
         if invoice_data.invoice_date:
             today = datetime.now().date()
             if invoice_data.invoice_date > today:
                 anomalies["invoice_date"] = f"Future date: {invoice_data.invoice_date}"
+                logger.debug(f"Invoice {invoice_data.invoice_number}: Future date detected")
             elif (today - invoice_data.invoice_date).days > 365:
                 anomalies["invoice_date"] = f"Invoice older than 1 year: {invoice_data.invoice_date}"
+                logger.debug(f"Invoice {invoice_data.invoice_number}: Invoice too old")
         
         # Tax amount validation
         if invoice_data.tax_amount:
             if invoice_data.tax_amount > invoice_data.total_amount:
-                anomalies["tax_amount"] = f"Tax amount ({invoice_data.tax_amount}) greater than total amount ({invoice_data.total_amount})"
+                msg = f"Tax amount ({invoice_data.tax_amount}) greater than total amount ({invoice_data.total_amount})"
+                anomalies["tax_amount"] = msg
+                logger.debug(f"Invoice {invoice_data.invoice_number}: {msg}")
             elif invoice_data.tax_amount < Decimal('0'):
-                anomalies["tax_amount"] = f"Negative tax amount: {invoice_data.tax_amount}"
+                msg = f"Negative tax amount: {invoice_data.tax_amount}"
+                anomalies["tax_amount"] = msg
+                logger.debug(f"Invoice {invoice_data.invoice_number}: {msg}")
         
-        # If anomalies found, save them with timestamp and details
+        # If anomalies found, save them with detailed information
         if anomalies:
             self._save_anomaly({
                 "invoice_number": invoice_data.invoice_number,
@@ -63,10 +76,17 @@ class AnomalyDetector:
                 "detection_time": datetime.now().isoformat(),
                 "invoice_data": invoice_data.model_dump(),
                 "severity": "high" if len(anomalies) > 2 else "medium" if len(anomalies) > 1 else "low",
-                "status": "detected"
+                "status": "detected",
+                "details": {
+                    "total_amount": str(invoice_data.total_amount),
+                    "confidence": invoice_data.confidence,
+                    "date": str(invoice_data.invoice_date)
+                }
             })
             logger.info(f"Detected {len(anomalies)} anomalies for invoice {invoice_data.invoice_number}")
             logger.debug(f"Anomaly details: {anomalies}")
+        else:
+            logger.info(f"No anomalies detected for invoice {invoice_data.invoice_number}")
         
         return anomalies
 

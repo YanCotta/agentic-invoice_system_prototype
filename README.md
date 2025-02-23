@@ -352,7 +352,7 @@ instead of react/next.js)
   - Resolved Streamlit frontend dependencies
   - Added proper error handling for missing packages
 
-### 🚨 Known Issues and Next Steps
+### 🚨 Completed Day 5 troubleshooting and debugging:
 
 #### Processing Pipeline Issues
 1. **Timer Anomalies**
@@ -384,23 +384,53 @@ instead of react/next.js)
    - Implement weighted scoring for critical fields
    - Add confidence score auditing and logging
 
-#### Action Items
-- [ ] Debug validation and matching step timing issues
-- [ ] Investigate and fix confidence scoring calculation
-- [ ] Enhance RAG integration for better anomaly detection
-- [ ] Implement proper confidence thresholds for review flagging
-- [ ] Add unit tests for timing and confidence calculations
-- [ ] Add timing decorators to track async operations
-- [ ] Implement confidence score auditing
-- [ ] Add detailed logging for score components
-- [ ] Create monitoring dashboard for timing metrics
-- [ ] Develop confidence score visualization tools
+### 🎯 Major Achievements
+- **Non-Invoice File Handling**
+  - Successfully implemented detection and flagging of non-invoice files (e.g., resumes)
+  - Added automatic routing to review page for manual verification
+  - Integrated storage in `anomalies.json` with detailed classification
+  - Enhanced user feedback for invalid document uploads
 
----
+- **Review Page Enhancements**
+  - Implemented full field editing capabilities for all invoice attributes
+  - Added validation for edited fields
+  - Ensured correct persistence of changes to `structured_invoices.json`
+  - Improved user feedback during save operations
 
-## 🚀 Remaining Workflow (Days 5–10)
+- **File Management Optimization**
+  - Fixed PDF handling to preserve original files in source location
+  - Implemented structured JSON-only storage in `data/processed/`
+  - Enhanced file path tracking in database entries
+  - Added safeguards against accidental file movements
 
-### Day 5 – Deployment & Post-Processing Analytics
+- **Processing Pipeline Improvements**
+  - Integrated dynamic confidence scoring with RAG helper
+  - Reduced unnecessary review flags through pattern recognition
+  - Added comprehensive logging for validation and matching agents
+  - Fixed timing issues for processing steps
+
+### 🚨 Current Status
+- System is now fully functional with all major features operational
+- Review page correctly identifies and flags only relevant invoices
+- Data processing and storage systems are stable and reliable
+- RAG-based error detection is working effectively
+
+### ⚠️ Known Issue
+- **Metrics Page Error**
+  - TypeError in DataFrame display: `TypeError: unsupported format string passed to NoneType.__format__`
+  - Root cause: None values in processing times
+  - Fix in progress: Implementing proper handling of null values
+  - Temporary workaround: Default to 0.0 for missing time values
+
+### 📋 Next Steps
+1. Resolve metrics page TypeError by implementing proper null value handling
+2. Add data validation for processing time entries
+3. Enhance error reporting in metrics visualization
+4. Update documentation with latest features and fixes
+
+## 🚀 Remaining Workflow (Days 6–10)
+
+### Day 6 – Deployment & Post-Processing Analytics
 - Dockerize the application
 - Set up CI/CD Pipeline with GitHub Actions
 - Develop an analytics dashboard for trends, anomalies, and key performance metrics
@@ -517,3 +547,4 @@ instead of react/next.js)
 - Low confidence scores (< 0.9) trigger human review
 - The system processes PDFs asynchronously, so there might be a brief delay before results appear
 - All processing metrics and logs are stored for analysis
+

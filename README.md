@@ -260,13 +260,6 @@ Additional Enhancements:
 }
 ```
 
-#### 📝 Notes for CEO
-- **Progress:** Ahead of schedule; already integrating advanced features (monitoring and full pipeline orchestration) on Day 3
-- **Challenges:** Addressed LLM output consistency with prompt refinement and regex cleaning
-- **Next Steps:** Finalize parsing reliability and commence frontend development on Day 4
-
----
-
 ## Model Transition and Backend Updates
 
 - **Initial Challenge**: We started with a local Mistral 7B model for invoice extraction but encountered inconsistent JSON output, leading to persistent parsing errors that stalled progress.
@@ -329,6 +322,79 @@ instead of react/next.js)
 - In `frontend/app.py`: Resolved missing imports with `import streamlit as st`, `import requests`, and `import pandas as pd` after installing via `pip install streamlit requests pandas`
 - In `models/invoice.py`: Addressed missing pydantic import with `from pydantic import BaseModel` (installed via `pip install pydantic`)
 
+#### File Management and Storage
+- Successfully implemented anomaly detection for non-invoice files (e.g., resumes), storing them in `data/processed/anomalies.json` with detailed reasons
+- Fixed PDF handling to keep original files in `data/raw/invoices/` while storing structured data in `data/processed/structured_invoices.json`
+- Enhanced file organization to prevent accidental file movements during processing
+
+#### Frontend Improvements
+- Implemented PDF download functionality in the review tab
+- Added field editing capabilities with validation
+- Enhanced save changes functionality with proper error handling
+- Updated currency display to show £ symbol consistently across the UI
+- Added user-friendly error messages for common issues:
+  - Missing required fields
+  - Non-invoice document uploads
+  - Processing failures
+  - Connection errors
+
+#### Currency Standardization
+- Updated currency handling throughout the project to use GBP:
+  - Modified `models/invoice.py` Config class to use GBP as default
+  - Updated validators to enforce GBP currency validation
+  - Enhanced display formatting to show £ symbol in frontend tables and forms
+  - Updated extraction agent to convert amounts to GBP during processing
+
+#### Import and Dependency Fixes
+- Resolved all import-related issues across the project:
+  - Added proper OpenAI API integration with environment variable handling
+  - Fixed dotenv configuration for secure API key management
+  - Resolved Streamlit frontend dependencies
+  - Added proper error handling for missing packages
+
+### 🚨 Known Issues and Next Steps
+
+#### Processing Pipeline Issues
+1. **Timer Anomalies**
+   - Validation and matching steps reporting 0.00s processing times
+   - Potential execution flow issues in the pipeline
+   - Need to investigate `workflows/orchestrator.py` timing logic
+   - Monitoring class may not be properly tracking async operations
+   - Timer start/stop calls might be missing in some error paths
+
+2. **Confidence Scoring Problems**
+   - All invoices being flagged for review with 0.1 confidence
+   - Issues with confidence calculation in `data_processing/confidence_scoring.py`
+   - RAG helper integration not properly affecting confidence scores
+   - Confidence scoring fails to account for successful field extractions
+   - Default fallback confidence (0.1) being used instead of calculated scores
+
+#### Debugging Approach
+1. **Pipeline Timing**
+   - Add detailed logging for each processing step
+   - Implement timing decorators for key functions
+   - Track async operation durations separately
+   - Monitor event loop execution times
+   - Add checkpoints for timer verification
+
+2. **Confidence Calculation**
+   - Review field extraction success rate impact
+   - Validate RAG similarity scores
+   - Adjust confidence thresholds based on field importance
+   - Implement weighted scoring for critical fields
+   - Add confidence score auditing and logging
+
+#### Action Items
+- [ ] Debug validation and matching step timing issues
+- [ ] Investigate and fix confidence scoring calculation
+- [ ] Enhance RAG integration for better anomaly detection
+- [ ] Implement proper confidence thresholds for review flagging
+- [ ] Add unit tests for timing and confidence calculations
+- [ ] Add timing decorators to track async operations
+- [ ] Implement confidence score auditing
+- [ ] Add detailed logging for score components
+- [ ] Create monitoring dashboard for timing metrics
+- [ ] Develop confidence score visualization tools
 
 ---
 
@@ -352,38 +418,7 @@ instead of react/next.js)
 
 ---
 
-## 🚀 Setup Guide
-
-### Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### Key Packages
-- langchain==0.2.16
-- pdfplumber (>=0.10.0)
-- pytesseract (>=0.3.10)
-- pydantic (>=2.0.0)
-- fuzzywuzzy (>=0.18.0)
-- aiofiles (>=23.2.1)
-
-### Data Verification
-1. Ensure PDFs are located in:
-   - `data/raw/invoices/`
-   - `data/raw/test_samples/`
-2. Verify presence of `vendor_data.csv` in `data/raw/`
-
-### Execution
-```bash
-python workflows/orchestrator.py
-```
-
----
-
 ## 🔧 Setup and Usage Instructions
-
-### 📋 Project Overview
-The Brim Invoice Processing System is a comprehensive multi-agent solution featuring a Streamlit frontend and FastAPI backend. It's designed to streamline invoice processing through automated extraction, validation, PO matching, and human review workflows.
 
 ### 📦 Prerequisites
 - Python 3.12 or higher

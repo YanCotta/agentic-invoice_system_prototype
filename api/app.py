@@ -18,6 +18,8 @@ print("uuid imported")
 import logging
 print("logging imported")
 from glob import glob  # added for process_all_invoices endpoint
+from fastapi.responses import FileResponse
+import shutil
 
 logger = logging.getLogger("InvoiceProcessing")
 
@@ -52,7 +54,11 @@ async def upload_invoice(file: UploadFile = File(...)):
         with open(temp_path, "wb") as f:
             f.write(await file.read())
         result = await workflow.process_invoice(str(temp_path))
-        temp_path.unlink()
+        invoice_number = result["extracted_data"].get("invoice_number")
+        if invoice_number:
+            pdf_path = Path(f"data/processed/{invoice_number}.pdf")
+            pdf_path.parent.mkdir(exist_ok=True)
+            temp_path.rename(pdf_path)
         return result  # Returns full result including timings from orchestrator
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing invoice: {str(e)}")
@@ -101,7 +107,19 @@ async def process_all_invoices():
     results = []
     for file in invoice_files:
         result = await workflow.process_invoice(file)
-        # Save just the extracted data
+        invoice_number = result["extracted_data"].get("invoice_number")
+        if invoice_number:
+            pdf_path = Path(f"data/processed/{invoice_number}.pdf")
+            pdf_path.parent.mkdir(exist_ok=True)
+            # Move the raw file to processed folder
+            Path(file).rename(pdf_path)
         save_invoice(result.get('extracted_data', {}))
         results.append(result)
     return {"message": f"Processed {len(results)} invoices"}
+
+@app.get("/api/invoice_pdf/{invoice_number}")
+async def get_invoice_pdf(invoice_number: str):
+    pdf_path = Path(f"data/processed/{invoice_number}.pdf")
+    if pdf_path.exists():
+        return FileResponse(pdf_path, media_type="application/pdf", filename=f"{invoice_number}.pdf")
+    raise HTTPException(status_code=404, detail="PDF not found")

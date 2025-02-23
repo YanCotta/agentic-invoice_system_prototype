@@ -255,6 +255,7 @@ Additional Enhancements:
   "invoice_number": "IN_3515484",
   "invoice_date": "2025-01-30",
   "total_amount": "1793.70",
+  "currency": "GBP",
   "confidence": 0.95
 }
 ```

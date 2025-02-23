@@ -390,20 +390,28 @@ The Brim Invoice Processing System is a comprehensive multi-agent solution featu
    # On Windows:
    venv\Scripts\activate
    ```
+  3. **Install Dependencies**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-3. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+  4. **Create Environment File**
+    ```bash
+    # Create .env file in project root
+    echo "OPENAI_API_KEY=your-api-key-here" > .env
+    
+    # Replace with your actual OpenAI API key
+    # Important: Never commit this file to version control
+    ```
 
-4. **Verify Data Structure**
-   - Ensure sample PDFs exist in:
-     - `data/raw/invoices/` (main invoice directory)
-     - `data/test_samples/` (contains `invoice_standard_example.pdf`)
-   - Verify `data/raw/vendor_data.csv` is present
+  5. **Verify Data Structure**
+    - Ensure sample PDFs exist in:
+      - `data/raw/invoices/` (main invoice directory)
+      - `data/test_samples/` (contains `invoice_standard_example.pdf`)
+    - Verify `data/raw/vendor_data.csv` is present
 
-### 🚀 Running the Application
-1. **Start the Backend Services**
+  ### 🚀 Running the Application
+  1. **Start the Backend Services**
    Open three separate terminals and run:
 
    ```bash

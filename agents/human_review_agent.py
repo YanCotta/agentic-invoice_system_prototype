@@ -16,18 +16,22 @@ class HumanReviewAgent(BaseAgent):
     async def run(self, invoice_data: InvoiceData, validation_result: ValidationResult) -> dict:
         logger.info(f"Reviewing invoice: {invoice_data.invoice_number}")
         logger.debug(f"Invoice data: {invoice_data.model_dump()}, Validation: {validation_result.model_dump()}")
+        # Set needs_review if confidence is low or validation failed
         if invoice_data.confidence < 0.8 or validation_result.status != "valid":
             logger.debug(f"Flagging for review: confidence={invoice_data.confidence}, status={validation_result.status}")
             review_task = {
                 "status": "needs_review",
                 "invoice_data": invoice_data.model_dump(),
-                "validation_errors": validation_result.errors
+                "validation_errors": validation_result.errors,
+                "review_reason": "Low confidence" if invoice_data.confidence < 0.8 else "Validation failed"
             }
         else:
             logger.debug("Approving invoice: confidence above threshold and validation passed")
-            review_task = {"status": "approved", "invoice_data": invoice_data.model_dump()}
+            review_task = {
+                "status": "approved", 
+                "invoice_data": invoice_data.model_dump()
+            }
         logger.info(f"Review result: {review_task}")
-        logger.debug(f"Review decision details: {review_task}")
         return review_task
 
 if __name__ == "__main__":

@@ -15,6 +15,15 @@ from data_processing.confidence_scoring import compute_confidence_score
 from data_processing.rag_helper import InvoiceRAGIndex
 from models.invoice import InvoiceData
 from decimal import Decimal
+from datetime import datetime
+
+# Add requirements for OpenAI and python-dotenv
+try:
+    import openai
+    import python_dotenv
+except ImportError:
+    logger.error("Required packages not found. Please run: pip install openai python-dotenv")
+    raise
 
 load_dotenv()  # Load environment variables from .env
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -53,65 +62,112 @@ class InvoiceExtractionAgent(BaseAgent):
 
     async def run(self, document_path: str) -> InvoiceData:
         logger.info(f"Processing document: {document_path}")
-        if document_path.lower().endswith(".pdf"):
-            invoice_text = extract_text_from_pdf(document_path)
-        else:
-            invoice_text = ocr_process_image(document_path)
-
-        # Check RAG for similar invoices
-        rag_result = self.rag_index.classify_invoice(invoice_text)
-        if rag_result['status'] == 'similar_error':
-            logger.warning(f"Invoice similar to known error: {rag_result['matched_invoice_id']}")
-
         try:
-            # Use OpenAI API to extract fields
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "Extract the following fields from the invoice text and return them in JSON format: vendor_name, invoice_number, invoice_date, total_amount. Ensure total_amount is a numeric string without currency symbols."},
-                    {"role": "user", "content": invoice_text}
-                ],
-                response_format={"type": "json_object"}
-            )
-            json_data = json.loads(response.choices[0].message.content)
-            extracted_data = {
-                "vendor_name": json_data.get("vendor_name", ""),
-                "invoice_number": json_data.get("invoice_number", ""),
-                "invoice_date": json_data.get("invoice_date", ""),
-                "total_amount": json_data.get("total_amount", "")
-            }
-            cleaned_total_amount = re.sub(r'[^\d.]', '', extracted_data["total_amount"])
-            extracted_data["total_amount"] = cleaned_total_amount
-            # Compute dynamic confidence score instead of using a static value
-            confidence = compute_confidence_score(extracted_data)
-            logger.info(f"Computed confidence score for invoice {extracted_data['invoice_number']}: {confidence}")
-        except Exception as e:
-            logger.warning(f"OpenAI extraction failed: {str(e)}. Falling back to placeholder.")
-            extracted_data = self.tools[0]._run(invoice_text)
-            confidence = extracted_data.get("confidence", 0.0)
-            if "error" not in extracted_data:
-                total_amount = extracted_data["data"].get("total_amount", {}).get("value", "")
-                cleaned_total_amount = re.sub(r'[^\d.]', '', total_amount)
-                extracted_data["data"]["total_amount"]["value"] = cleaned_total_amount
+            # Extract text from document
+            if document_path.lower().endswith(".pdf"):
+                invoice_text = extract_text_from_pdf(document_path)
             else:
+                invoice_text = ocr_process_image(document_path)
+
+            # Handle empty or unreadable files
+            if not invoice_text.strip():
+                logger.warning(f"No text could be extracted from {document_path}")
+                return InvoiceData(
+                    vendor_name="Unknown",
+                    invoice_number="UNREADABLE",
+                    invoice_date=datetime.now().date(),
+                    total_amount=Decimal("0.00"),
+                    confidence=0.0,
+                    review_status="needs_review",
+                    error_message="Document is empty or unreadable"
+                )
+
+            # Initial check for invoice-like content
+            invoice_indicators = ["invoice", "bill", "total", "amount", "date", "payment"]
+            text_lower = invoice_text.lower()
+            if not any(indicator in text_lower for indicator in invoice_indicators):
+                logger.warning(f"Document {document_path} does not appear to be an invoice")
+                return InvoiceData(
+                    vendor_name="Unknown",
+                    invoice_number="INVALID",
+                    invoice_date=datetime.now().date(),
+                    total_amount=Decimal("0.00"),
+                    confidence=0.1,
+                    review_status="needs_review",
+                    error_message="Document does not appear to be an invoice"
+                )
+
+            # Check RAG for similar invoices
+            rag_result = self.rag_index.classify_invoice(invoice_text)
+            if rag_result['status'] == 'similar_error':
+                logger.warning(f"Invoice similar to known error: {rag_result['matched_invoice_id']}")
+
+            try:
+                # Use OpenAI API to extract fields
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "Extract the following fields from the invoice text and return them in JSON format: vendor_name, invoice_number, invoice_date, total_amount. Ensure total_amount is a numeric string without currency symbols."},
+                        {"role": "user", "content": invoice_text}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                json_data = json.loads(response.choices[0].message.content)
                 extracted_data = {
-                    "vendor_name": "",
-                    "invoice_number": "",
-                    "invoice_date": "",
+                    "vendor_name": json_data.get("vendor_name", ""),
+                    "invoice_number": json_data.get("invoice_number", ""),
+                    "invoice_date": json_data.get("invoice_date", ""),
+                    "total_amount": json_data.get("total_amount", "")
+                }
+                cleaned_total_amount = re.sub(r'[^\d.]', '', extracted_data["total_amount"])
+                extracted_data["total_amount"] = cleaned_total_amount
+
+                # Check for required fields and set confidence accordingly
+                if not extracted_data.get("invoice_number") or not extracted_data.get("total_amount"):
+                    logger.warning("Missing required fields in extracted data")
+                    confidence = 0.1
+                    review_status = "needs_review"
+                    error_message = "Missing required invoice fields"
+                else:
+                    confidence = compute_confidence_score(extracted_data)
+                    review_status = "pending"
+                    error_message = None
+
+            except Exception as e:
+                logger.warning(f"Extraction failed: {str(e)}. Using fallback values.")
+                extracted_data = {
+                    "vendor_name": "Unknown",
+                    "invoice_number": "FAILED",
+                    "invoice_date": datetime.now().date().isoformat(),
                     "total_amount": "0.00"
                 }
-                confidence = 0.0
-            logger.debug(f"Fallback extraction data: {extracted_data}")
+                confidence = 0.1
+                review_status = "needs_review"
+                error_message = f"Extraction failed: {str(e)}"
 
-        invoice_data = InvoiceData(
-            vendor_name=extracted_data.get("vendor_name", ""),
-            invoice_number=extracted_data.get("invoice_number", ""),
-            invoice_date=extracted_data.get("invoice_date", ""),
-            total_amount=Decimal(str(extracted_data.get("total_amount", "0.00"))),
-            confidence=confidence
-        )
-        logger.info(f"Successfully extracted invoice data with confidence {confidence}")
-        return invoice_data
+            invoice_data = InvoiceData(
+                vendor_name=extracted_data.get("vendor_name", "Unknown"),
+                invoice_number=extracted_data.get("invoice_number", "INVALID"),
+                invoice_date=extracted_data.get("invoice_date", datetime.now().date().isoformat()),
+                total_amount=Decimal(str(extracted_data.get("total_amount", "0.00"))),
+                confidence=confidence,
+                review_status=review_status,
+                error_message=error_message
+            )
+            logger.info(f"Extraction completed with confidence {confidence}")
+            return invoice_data
+
+        except Exception as e:
+            logger.error(f"Critical error during extraction: {str(e)}", exc_info=True)
+            return InvoiceData(
+                vendor_name="Error",
+                invoice_number="ERROR",
+                invoice_date=datetime.now().date(),
+                total_amount=Decimal("0.00"),
+                confidence=0.0,
+                review_status="needs_review",
+                error_message=f"Critical error: {str(e)}"
+            )
 
 if __name__ == "__main__":
     async def main():

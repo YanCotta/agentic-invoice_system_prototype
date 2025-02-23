@@ -61,8 +61,9 @@ class InvoiceProcessingWorkflow:
                 "po_number": extracted_data.po_number,
                 "tax_amount": extracted_data.tax_amount,
                 "currency": extracted_data.currency,
-                "status": "extracted",  # Add status to track progress
-                "extraction_time": extraction_time
+                "status": "extracted",
+                "extraction_time": extraction_time,
+                "original_path": document_path  # Store original path instead of copying file
             }
             # Save initial extraction data
             self._save_invoice_entry(extracted_dict)
@@ -205,6 +206,8 @@ class InvoiceProcessingWorkflow:
     def _save_invoice_entry(self, invoice_entry, output_file="data/processed/structured_invoices.json"):
         try:
             os.makedirs("data/processed", exist_ok=True)
+            
+            # Load existing data or initialize
             try:
                 if os.path.exists(output_file):
                     with open(output_file, "r") as f:
@@ -212,7 +215,12 @@ class InvoiceProcessingWorkflow:
                 else:
                     all_invoices = []
             except (FileNotFoundError, json.JSONDecodeError):
+                logger.warning(f"Invalid or missing JSON in {output_file}, starting fresh")
                 all_invoices = []
+            
+            # Add essential fields if missing
+            if not invoice_entry.get("processed_time"):
+                invoice_entry["processed_time"] = datetime.now().isoformat()
             
             # Update existing entry or add new one
             invoice_number = invoice_entry.get("invoice_number")
@@ -225,11 +233,9 @@ class InvoiceProcessingWorkflow:
             updated = False
             for i, inv in enumerate(all_invoices):
                 if inv.get("invoice_number") == invoice_number:
-                    # Preserve certain fields from existing entry
-                    preserve_fields = ["document_path"]
-                    for field in preserve_fields:
-                        if field in inv and field not in invoice_entry:
-                            invoice_entry[field] = inv[field]
+                    # Preserve original_path from existing entry if not in new data
+                    if "original_path" in inv and "original_path" not in invoice_entry:
+                        invoice_entry["original_path"] = inv["original_path"]
                     all_invoices[i] = invoice_entry
                     updated = True
                     logger.info(f"Updated existing invoice entry: {invoice_number}")

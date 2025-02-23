@@ -79,7 +79,9 @@ class InvoiceValidationAgent(BaseAgent):
             anomaly_errors = await asyncio.to_thread(self.anomaly_detector.detect_anomalies, invoice_data)
             if anomaly_errors:
                 logger.info(f"Anomalies detected for invoice {invoice_data.invoice_number}: {anomaly_errors}")
-                errors.update(anomaly_errors)
+                errors.update({"anomalies": anomaly_errors})
+                # Set review_status flag for human review if anomalies found
+                invoice_data.review_status = "needs_review"
         except Exception as e:
             logger.error(f"Anomaly detection failed: {str(e)}", exc_info=True)
             errors["anomaly_detection"] = f"Failed: {str(e)}"

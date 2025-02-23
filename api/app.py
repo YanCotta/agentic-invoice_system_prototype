@@ -47,7 +47,7 @@ def save_invoice(invoice_entry, output_file="data/processed/structured_invoices.
 
 @app.post("/api/upload_invoice")
 async def upload_invoice(file: UploadFile = File(...)):
-    """Process an uploaded invoice PDF."""
+    """Process an uploaded invoice PDF and save it."""
     try:
         temp_path = Path(f"data/temp/{uuid.uuid4()}.pdf")
         temp_path.parent.mkdir(exist_ok=True)
@@ -58,10 +58,13 @@ async def upload_invoice(file: UploadFile = File(...)):
         if invoice_number:
             pdf_path = Path(f"data/processed/{invoice_number}.pdf")
             pdf_path.parent.mkdir(exist_ok=True)
-            temp_path.rename(pdf_path)
-        return result  # Returns full result including timings from orchestrator
+            shutil.copy2(temp_path, pdf_path)  # Copy instead of move to preserve original
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing invoice: {str(e)}")
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()  # Clean up temp file
 
 @app.get("/api/invoices")
 async def get_invoices():
@@ -102,20 +105,21 @@ async def update_invoice(invoice_number: str, update_data: dict):
 
 @app.get("/api/process_all_invoices")
 async def process_all_invoices():
-    """Process all invoice PDFs from data/raw/invoices and save their extracted data."""
-    invoice_files = glob("data/raw/invoices/*.pdf")
-    results = []
-    for file in invoice_files:
-        result = await workflow.process_invoice(file)
-        invoice_number = result["extracted_data"].get("invoice_number")
-        if invoice_number:
-            pdf_path = Path(f"data/processed/{invoice_number}.pdf")
-            pdf_path.parent.mkdir(exist_ok=True)
-            # Move the raw file to processed folder
-            Path(file).rename(pdf_path)
-        save_invoice(result.get('extracted_data', {}))
-        results.append(result)
-    return {"message": f"Processed {len(results)} invoices"}
+    """Process all invoice PDFs and save results."""
+    try:
+        invoice_files = glob("data/raw/invoices/*.pdf")
+        results = []
+        for file in invoice_files:
+            result = await workflow.process_invoice(file)
+            invoice_number = result["extracted_data"].get("invoice_number")
+            if invoice_number:
+                pdf_path = Path(f"data/processed/{invoice_number}.pdf")
+                pdf_path.parent.mkdir(exist_ok=True)
+                shutil.copy2(file, pdf_path)  # Copy instead of move to preserve original
+            results.append(result)
+        return {"message": f"Processed {len(results)} invoices"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing invoices: {str(e)}")
 
 @app.get("/api/invoice_pdf/{invoice_number}")
 async def get_invoice_pdf(invoice_number: str):

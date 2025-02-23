@@ -46,7 +46,7 @@ if page == "Upload":
                 st.write(f"- Extraction: {result.get('extraction_time', 0):.2f}s")
                 st.write(f"- Validation: {result.get('validation_time', 0):.2f}s")
                 st.write(f"- Matching: {result.get('matching_time', 0):.2f}s")
-                st.write(f"- Review: {result.get('review_time', 0)::.2f}s")
+                st.write(f"- Review: {result.get('review_time', 0):.2f}s")
                 st.write(f"- Total: {result.get('total_time', 0):.2f}s")
             else:
                 st.error(f"Error: {response.text}")
@@ -79,13 +79,22 @@ elif page == "Review":
     if response.status_code == 200:
         invoices = response.json()
         flagged = [inv for inv in invoices if float(inv.get("confidence", 1.0)) < 0.9 or inv.get("validation_status") != "valid"]
-        for i, inv in enumerate(flagged):
+        for index, inv in enumerate(flagged):
             with st.expander(f"Invoice {inv['invoice_number']} (Confidence: {inv.get('confidence', 1.0):.2f})"):
-                # Add PDF view/download link
-                st.markdown(f"[View PDF](http://localhost:8000/api/invoice_pdf/{inv['invoice_number']})", unsafe_allow_html=True)
+                # Replace PDF view link with download button
+                pdf_response = requests.get(f"{API_URL}/api/invoice_pdf/{inv['invoice_number']}")
+                if pdf_response.status_code == 200:
+                    st.download_button(
+                        label="Download PDF",
+                        data=pdf_response.content,
+                        file_name=f"{inv['invoice_number']}.pdf",
+                        mime="application/pdf"
+                    )
+                else:
+                    st.write("PDF not available")
                 
-                # Form for displaying and editing all invoice fields
-                with st.form(key=f"form_{inv['invoice_number']}"):
+                # Form for displaying and editing all invoice fields with unique key
+                with st.form(key=f"form_{index}_{inv['invoice_number']}"):
                     vendor_name = st.text_input("Vendor Name", value=inv.get("vendor_name", ""))
                     invoice_number = st.text_input("Invoice Number", value=inv.get("invoice_number", ""))
                     invoice_date = st.date_input("Invoice Date", value=inv.get("invoice_date", None))

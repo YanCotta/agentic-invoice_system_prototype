@@ -1,5 +1,6 @@
 import time
 from config.logging_config import logger
+from contextlib import contextmanager
 
 class Monitoring:
     def __init__(self):
@@ -20,3 +21,13 @@ class Monitoring:
         else:
             logger.warning(f"No start time recorded for {module_name}")
             return 0.0
+
+    @contextmanager
+    def timer(self, module_name: str):
+        """Context manager for timing a block of code"""
+        try:
+            self.start_timer(module_name)
+            yield
+        finally:
+            duration = self.stop_timer(module_name)
+            return duration

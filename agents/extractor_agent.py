@@ -17,16 +17,22 @@ from models.invoice import InvoiceData
 from decimal import Decimal
 from datetime import datetime
 
-# Add requirements for OpenAI and python-dotenv
+# Add requirements for OpenAI
 try:
     import openai
-    import python_dotenv
 except ImportError:
     logger.error("Required packages not found. Please run: pip install openai python-dotenv")
     raise
 
 load_dotenv()  # Load environment variables from .env
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Check for required environment variables
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    logger.error("OPENAI_API_KEY not found in environment variables. Please ensure it is set in .env file")
+    raise ValueError("OPENAI_API_KEY environment variable is required")
+
+client = OpenAI(api_key=api_key)
 
 class InvoiceExtractionTool:
     """A simple tool to extract structured invoice data as a fallback."""

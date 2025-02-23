@@ -4,6 +4,16 @@ import pandas as pd
 
 API_URL = "http://localhost:8000"
 
+def save_updated_invoice(updated_invoice):
+    response = requests.put(
+        f"{API_URL}/api/invoices/{updated_invoice['invoice_number']}",
+        json=updated_invoice
+    )
+    if response.status_code == 200:
+        st.success("Invoice updated successfully!")
+    else:
+        st.error(f"Failed to update invoice: {response.text}")
+
 # Set page config for a custom theme
 st.set_page_config(page_title="Brim Invoice Processing", layout="wide")
 
@@ -36,7 +46,7 @@ if page == "Upload":
                 st.write(f"- Extraction: {result.get('extraction_time', 0):.2f}s")
                 st.write(f"- Validation: {result.get('validation_time', 0):.2f}s")
                 st.write(f"- Matching: {result.get('matching_time', 0):.2f}s")
-                st.write(f"- Review: {result.get('review_time', 0):.2f}s")
+                st.write(f"- Review: {result.get('review_time', 0)::.2f}s")
                 st.write(f"- Total: {result.get('total_time', 0):.2f}s")
             else:
                 st.error(f"Error: {response.text}")
@@ -64,19 +74,33 @@ elif page == "Invoices":
 
 elif page == "Review":
     st.header("Review Flagged Invoices")
+
     response = requests.get(f"{API_URL}/api/invoices")
     if response.status_code == 200:
         invoices = response.json()
         flagged = [inv for inv in invoices if float(inv.get("confidence", 1.0)) < 0.9 or inv.get("validation_status") != "valid"]
         for i, inv in enumerate(flagged):
-            with st.expander(f"Invoice {inv['invoice_number']} (Confidence: {inv['confidence']:.2f})"):
-                vendor_key = f"vendor_{inv['invoice_number']}_{i}"
-                total_key = f"total_{inv['invoice_number']}_{i}"
-                vendor = st.text_input("Vendor Name", inv["vendor_name"], key=vendor_key)
-                total = st.number_input("Total Amount", float(inv["total_amount"]), key=total_key)
-                if st.button("Save Corrections", key=f"save_{inv['invoice_number']}_{i}"):
-                    # Add your save logic here, e.g., send updated data to the API
-                    st.success(f"Corrections saved for {inv['invoice_number']}")
+            with st.expander(f"Invoice {inv['invoice_number']} (Confidence: {inv.get('confidence', 1.0):.2f})"):
+                # Add PDF view/download link
+                st.markdown(f"[View PDF](http://localhost:8000/api/invoice_pdf/{inv['invoice_number']})", unsafe_allow_html=True)
+                
+                # Form for displaying and editing all invoice fields
+                with st.form(key=f"form_{inv['invoice_number']}"):
+                    vendor_name = st.text_input("Vendor Name", value=inv.get("vendor_name", ""))
+                    invoice_number = st.text_input("Invoice Number", value=inv.get("invoice_number", ""))
+                    invoice_date = st.date_input("Invoice Date", value=inv.get("invoice_date", None))
+                    total_amount = st.number_input("Total Amount", value=float(inv.get("total_amount", 0.0)))
+                    po_number = st.text_input("PO Number", value=inv.get("po_number", ""))
+                    submit = st.form_submit_button("Save Changes")
+                    if submit:
+                        updated_invoice = {
+                            "vendor_name": vendor_name,
+                            "invoice_number": invoice_number,
+                            "invoice_date": str(invoice_date),
+                            "total_amount": total_amount,
+                            "po_number": po_number
+                        }
+                        save_updated_invoice(updated_invoice)
     else:
         st.error("Failed to fetch invoices from API")
 

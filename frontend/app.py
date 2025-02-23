@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 from datetime import datetime  # Add datetime import
 
-API_URL = "http://localhost:8000"
+API_URL = "http://127.0.0.1:8000"
 
 def save_updated_invoice(updated_invoice):
     response = requests.put(

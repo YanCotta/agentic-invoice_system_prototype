@@ -20,6 +20,7 @@ print("logging imported")
 from glob import glob  # added for process_all_invoices endpoint
 from fastapi.responses import FileResponse
 import shutil
+import atexit
 
 logger = logging.getLogger("InvoiceProcessing")
 
@@ -31,8 +32,8 @@ print("Workflow instance created")
 OUTPUT_FILE = Path("data/processed/structured_invoices.json")
 
 def save_invoice(invoice_entry, output_file="data/processed/structured_invoices.json"):
-    import os, json
-    os.makedirs("data/processed", exist_ok=True)
+    """Save extracted invoice data to JSON, preserving existing entries."""
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     try:
         if os.path.exists(output_file):
             with open(output_file, 'r') as f:
@@ -40,10 +41,28 @@ def save_invoice(invoice_entry, output_file="data/processed/structured_invoices.
         else:
             all_invoices = []
     except json.JSONDecodeError:
+        logger.warning(f"Invalid JSON in {output_file}, starting fresh")
         all_invoices = []
-    all_invoices.append(invoice_entry)
+    
+    # Update existing entry or add new one
+    invoice_number = invoice_entry.get("invoice_number")
+    if invoice_number:
+        # Look for existing entry to update
+        for i, inv in enumerate(all_invoices):
+            if inv.get("invoice_number") == invoice_number:
+                all_invoices[i] = invoice_entry
+                break
+        else:
+            # No existing entry found, append new one
+            all_invoices.append(invoice_entry)
+    else:
+        # No invoice number, just append
+        all_invoices.append(invoice_entry)
+    
+    # Write updated data
     with open(output_file, 'w') as f:
         json.dump(all_invoices, f, indent=4)
+    logger.info(f"Saved invoice data to {output_file}")
 
 @app.post("/api/upload_invoice")
 async def upload_invoice(file: UploadFile = File(...)):
@@ -54,11 +73,7 @@ async def upload_invoice(file: UploadFile = File(...)):
         with open(temp_path, "wb") as f:
             f.write(await file.read())
         result = await workflow.process_invoice(str(temp_path))
-        invoice_number = result["extracted_data"].get("invoice_number")
-        if invoice_number:
-            pdf_path = Path(f"data/processed/{invoice_number}.pdf")
-            pdf_path.parent.mkdir(exist_ok=True)
-            shutil.copy2(temp_path, pdf_path)  # Copy instead of move to preserve original
+        # Removing PDF copy to data/processed, only save extracted data
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing invoice: {str(e)}")
@@ -112,12 +127,7 @@ async def process_all_invoices():
         for file in invoice_files:
             try:
                 result = await workflow.process_invoice(file)
-                invoice_number = result["extracted_data"].get("invoice_number")
-                if invoice_number:
-                    pdf_path = Path(f"data/processed/{invoice_number}.pdf")
-                    pdf_path.parent.mkdir(exist_ok=True)
-                    shutil.copy2(file, pdf_path)  # Copy instead of move to preserve original
-                    logger.info(f"Saved PDF for invoice {invoice_number}")
+                # Removed PDF copying to data/processed
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to process {file}: {str(e)}")
@@ -135,7 +145,42 @@ async def process_all_invoices():
 
 @app.get("/api/invoice_pdf/{invoice_number}")
 async def get_invoice_pdf(invoice_number: str):
-    pdf_path = Path(f"data/processed/{invoice_number}.pdf")
-    if pdf_path.exists():
-        return FileResponse(pdf_path, media_type="application/pdf", filename=f"{invoice_number}.pdf")
-    raise HTTPException(status_code=404, detail="PDF not found")
+    """Get the PDF file for a specific invoice from the raw invoices directory."""
+    try:
+        # First try to find the original path from structured_invoices.json
+        if OUTPUT_FILE.exists():
+            with open(OUTPUT_FILE, "r") as f:
+                invoices = json.load(f)
+                for inv in invoices:
+                    if inv.get("invoice_number") == invoice_number:
+                        original_path = inv.get("original_path")
+                        if original_path and Path(original_path).exists():
+                            return FileResponse(
+                                original_path, 
+                                media_type="application/pdf",
+                                filename=f"{invoice_number}.pdf"
+                            )
+        
+        # Fallback: search in raw/invoices directory
+        raw_invoices_dir = Path("data/raw/invoices")
+        matching_files = list(raw_invoices_dir.glob(f"*{invoice_number}*.pdf"))
+        if matching_files:
+            return FileResponse(
+                matching_files[0],
+                media_type="application/pdf",
+                filename=f"{invoice_number}.pdf"
+            )
+        
+        raise HTTPException(status_code=404, detail="PDF not found")
+    except Exception as e:
+        logger.error(f"Error retrieving PDF for invoice {invoice_number}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Clean up temp directory on application exit
+def cleanup_temp_directory():
+    temp_dir = Path("data/temp")
+    if (temp_dir.exists()):
+        shutil.rmtree(temp_dir)
+        logger.info("Cleaned up temporary files directory")
+
+atexit.register(cleanup_temp_directory)

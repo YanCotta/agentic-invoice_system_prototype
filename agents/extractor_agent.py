@@ -80,10 +80,11 @@ class InvoiceExtractionAgent(BaseAgent):
                 "invoice_date": json_data.get("invoice_date", ""),
                 "total_amount": json_data.get("total_amount", "")
             }
-            confidence = 0.95  # Default confidence for OpenAI success
             cleaned_total_amount = re.sub(r'[^\d.]', '', extracted_data["total_amount"])
             extracted_data["total_amount"] = cleaned_total_amount
-            logger.info(f"OpenAI extraction succeeded with cleaned total_amount: {cleaned_total_amount}")
+            # Compute dynamic confidence score instead of using a static value
+            confidence = compute_confidence_score(extracted_data)
+            logger.info(f"Computed confidence score for invoice {extracted_data['invoice_number']}: {confidence}")
         except Exception as e:
             logger.warning(f"OpenAI extraction failed: {str(e)}. Falling back to placeholder.")
             extracted_data = self.tools[0]._run(invoice_text)
@@ -103,10 +104,10 @@ class InvoiceExtractionAgent(BaseAgent):
             logger.debug(f"Fallback extraction data: {extracted_data}")
 
         invoice_data = InvoiceData(
-            vendor_name=extracted_data["vendor_name"],
-            invoice_number=extracted_data["invoice_number"],
-            invoice_date=extracted_data["invoice_date"],
-            total_amount=Decimal(str(extracted_data["total_amount"])),
+            vendor_name=extracted_data.get("vendor_name", ""),
+            invoice_number=extracted_data.get("invoice_number", ""),
+            invoice_date=extracted_data.get("invoice_date", ""),
+            total_amount=Decimal(str(extracted_data.get("total_amount", "0.00"))),
             confidence=confidence
         )
         logger.info(f"Successfully extracted invoice data with confidence {confidence}")

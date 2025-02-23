@@ -43,6 +43,7 @@ class InvoiceExtractionTool:
         logger.debug(f"Starting invoice text extraction with tool for text length: {len(invoice_text)}")
         try:
             extracted_data = self._extract_fields(invoice_text)
+            # Use the proper confidence scoring function
             confidence = compute_confidence_score(extracted_data)
             logger.info(f"Extraction completed with confidence: {confidence}")
             logger.debug(f"Extracted fields: {extracted_data}")
@@ -52,14 +53,47 @@ class InvoiceExtractionTool:
             return {"error": str(e), "confidence": 0.0}
 
     def _extract_fields(self, text: str) -> Dict:
-        logger.debug("Using placeholder extraction logic as fallback")
-        return {
-            "vendor_name": {"value": "ABC Corp Ltd.", "confidence": 0.95},
-            "invoice_number": {"value": "INV-2024-001", "confidence": 0.98},
-            "invoice_date": {"value": "2024-02-18", "confidence": 0.90},
-            "total_amount": {"value": "7595.00", "confidence": 0.99},
-            "currency": {"value": "GBP", "confidence": 1.0}
+        """Extracts fields with individual confidence scores."""
+        # Define regex patterns for key fields
+        patterns = {
+            "vendor_name": r"(?i)(?:vendor|supplier|from):\s*([A-Za-z0-9\s.,&-]+)",
+            "invoice_number": r"(?i)(?:invoice\s*(?:#|no|number)):\s*([A-Za-z0-9-]+)",
+            "invoice_date": r"(?i)(?:date|issued):\s*(\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4})",
+            "total_amount": r"(?i)(?:total|amount|sum):\s*[£$]?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)",
+            "po_number": r"(?i)(?:po|purchase\s*order)\s*(?:#|no|number)?:\s*([A-Za-z0-9-]+)"
         }
+
+        results = {}
+        for field, pattern in patterns.items():
+            match = re.search(pattern, text)
+            if match:
+                # Set confidence based on match quality and field importance
+                if field in ["invoice_number", "total_amount"]:
+                    confidence = 0.9  # Critical fields with good match
+                elif field in ["vendor_name", "invoice_date"]:
+                    confidence = 0.85  # Important fields with good match
+                else:
+                    confidence = 0.8  # Standard fields with good match
+            else:
+                # No match found
+                if field in ["invoice_number", "total_amount"]:
+                    confidence = 0.1  # Missing critical fields
+                else:
+                    confidence = 0.5  # Missing non-critical fields
+
+            value = match.group(1).strip() if match else ""
+            results[field] = {
+                "value": value,
+                "confidence": confidence
+            }
+
+        # Always set GBP as currency with high confidence
+        results["currency"] = {
+            "value": "GBP",
+            "confidence": 1.0
+        }
+
+        return results
 
 class InvoiceExtractionAgent(BaseAgent):
     def __init__(self):
@@ -84,7 +118,7 @@ class InvoiceExtractionAgent(BaseAgent):
                     invoice_number="UNREADABLE",
                     invoice_date=datetime.now().date(),
                     total_amount=Decimal("0.00"),
-                    confidence=0.0,
+                    confidence=0.1,  # Low confidence for unreadable files
                     review_status="needs_review",
                     error_message="Document is empty or unreadable"
                 )
@@ -99,13 +133,14 @@ class InvoiceExtractionAgent(BaseAgent):
                     invoice_number="INVALID",
                     invoice_date=datetime.now().date(),
                     total_amount=Decimal("0.00"),
-                    confidence=0.1,
+                    confidence=0.1,  # Low confidence for non-invoice documents
                     review_status="needs_review",
                     error_message="Document does not appear to be an invoice"
                 )
 
             # Check RAG for similar invoices
             rag_result = self.rag_index.classify_invoice(invoice_text)
+            rag_confidence_penalty = 0.2 if rag_result['status'] == 'similar_error' else 0.0
             if rag_result['status'] == 'similar_error':
                 logger.warning(f"Invoice similar to known error: {rag_result['matched_invoice_id']}")
 
@@ -120,47 +155,65 @@ class InvoiceExtractionAgent(BaseAgent):
                     response_format={"type": "json_object"}
                 )
                 json_data = json.loads(response.choices[0].message.content)
+                
+                # Create structured data with confidence scores for each field
                 extracted_data = {
-                    "vendor_name": json_data.get("vendor_name", ""),
-                    "invoice_number": json_data.get("invoice_number", ""),
-                    "invoice_date": json_data.get("invoice_date", ""),
-                    "total_amount": json_data.get("total_amount", ""),
-                    "currency": "GBP"  # Always set to GBP
+                    "vendor_name": {"value": json_data.get("vendor_name", ""), "confidence": 0.95},
+                    "invoice_number": {"value": json_data.get("invoice_number", ""), "confidence": 0.95},
+                    "invoice_date": {"value": json_data.get("invoice_date", ""), "confidence": 0.95},
+                    "total_amount": {"value": json_data.get("total_amount", ""), "confidence": 0.95},
+                    "currency": {"value": "GBP", "confidence": 1.0}
                 }
-                cleaned_total_amount = re.sub(r'[^\d.]', '', extracted_data["total_amount"])
-                extracted_data["total_amount"] = cleaned_total_amount
 
-                # Check for required fields and set confidence accordingly
-                if not extracted_data.get("invoice_number") or not extracted_data.get("total_amount"):
-                    logger.warning("Missing required fields in extracted data")
-                    confidence = 0.1
+                # Clean total amount
+                if extracted_data["total_amount"]["value"]:
+                    cleaned_total_amount = re.sub(r'[^\d.]', '', extracted_data["total_amount"]["value"])
+                    extracted_data["total_amount"]["value"] = cleaned_total_amount
+                    # If amount needed cleaning, reduce its confidence
+                    if cleaned_total_amount != extracted_data["total_amount"]["value"]:
+                        extracted_data["total_amount"]["confidence"] = 0.85
+
+                # Compute confidence score based on field presence and quality
+                confidence = compute_confidence_score(extracted_data)
+                
+                # Apply RAG penalty if similar to problematic invoices
+                if rag_confidence_penalty:
+                    confidence = max(0.1, confidence - rag_confidence_penalty)
+                    logger.info(f"Applied RAG confidence penalty. Original: {confidence + rag_confidence_penalty}, Final: {confidence}")
+
+                # Determine review status based on confidence and field presence
+                if (not extracted_data["invoice_number"]["value"] or 
+                    not extracted_data["total_amount"]["value"] or 
+                    confidence < 0.9):
                     review_status = "needs_review"
-                    error_message = "Missing required invoice fields"
+                    error_message = "Missing required fields or low confidence extraction"
                 else:
-                    confidence = compute_confidence_score(extracted_data)
                     review_status = "pending"
                     error_message = None
 
             except Exception as e:
                 logger.warning(f"Extraction failed: {str(e)}. Using fallback values.")
                 extracted_data = {
-                    "vendor_name": "Unknown",
-                    "invoice_number": "FAILED",
-                    "invoice_date": datetime.now().date().isoformat(),
-                    "total_amount": "0.00"
+                    "vendor_name": {"value": "Unknown", "confidence": 0.1},
+                    "invoice_number": {"value": "FAILED", "confidence": 0.1},
+                    "invoice_date": {"value": datetime.now().date().isoformat(), "confidence": 0.1},
+                    "total_amount": {"value": "0.00", "confidence": 0.1},
+                    "currency": {"value": "GBP", "confidence": 1.0}
                 }
-                confidence = 0.1
+                confidence = 0.1  # Low confidence for failed extractions
                 review_status = "needs_review"
                 error_message = f"Extraction failed: {str(e)}"
 
+            # Create InvoiceData instance with computed values
             invoice_data = InvoiceData(
-                vendor_name=extracted_data.get("vendor_name", "Unknown"),
-                invoice_number=extracted_data.get("invoice_number", "INVALID"),
-                invoice_date=extracted_data.get("invoice_date", datetime.now().date().isoformat()),
-                total_amount=Decimal(str(extracted_data.get("total_amount", "0.00"))),
+                vendor_name=extracted_data["vendor_name"]["value"],
+                invoice_number=extracted_data["invoice_number"]["value"],
+                invoice_date=extracted_data["invoice_date"]["value"],
+                total_amount=Decimal(str(extracted_data["total_amount"]["value"] or "0.00")),
                 confidence=confidence,
                 review_status=review_status,
-                error_message=error_message
+                error_message=error_message,
+                currency="GBP"
             )
             logger.info(f"Extraction completed with confidence {confidence}")
             return invoice_data

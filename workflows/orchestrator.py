@@ -153,7 +153,8 @@ class InvoiceProcessingWorkflow:
             "validation_time": validation_time,
             "matching_time": matching_time,
             "review_time": review_time,
-            "total_time": total_time
+            "total_time": total_time,
+            "document_path": document_path  # Add document path for reference
         }
         self._save_invoice_entry(invoice_entry)
 
@@ -176,14 +177,46 @@ class InvoiceProcessingWorkflow:
         try:
             os.makedirs("data/processed", exist_ok=True)
             try:
-                with open(output_file, "r") as f:
-                    all_invoices = json.load(f)
+                if os.path.exists(output_file):
+                    with open(output_file, "r") as f:
+                        all_invoices = json.load(f)
+                else:
+                    all_invoices = []
             except (FileNotFoundError, json.JSONDecodeError):
                 all_invoices = []
-            all_invoices.append(invoice_entry)
+            
+            # Update existing entry or add new one
+            invoice_number = invoice_entry.get("invoice_number")
+            updated = False
+            for i, inv in enumerate(all_invoices):
+                if inv.get("invoice_number") == invoice_number:
+                    all_invoices[i] = invoice_entry
+                    updated = True
+                    break
+            if not updated:
+                all_invoices.append(invoice_entry)
+            
             with open(output_file, "w") as f:
                 json.dump(all_invoices, f, indent=4)
             logger.info(f"Saved invoice entry to {output_file}")
+            
+            # Save to anomalies.json if needs review
+            if invoice_entry.get("review_status") == "needs_review":
+                anomalies_file = "data/processed/anomalies.json"
+                try:
+                    if os.path.exists(anomalies_file):
+                        with open(anomalies_file, "r") as f:
+                            anomalies = json.load(f)
+                    else:
+                        anomalies = []
+                except (FileNotFoundError, json.JSONDecodeError):
+                    anomalies = []
+                
+                anomalies.append(invoice_entry)
+                with open(anomalies_file, "w") as f:
+                    json.dump(anomalies, f, indent=4)
+                logger.info(f"Saved anomaly to {anomalies_file}")
+                
         except Exception as e:
             logger.error(f"Failed to save invoice entry: {str(e)}")
 

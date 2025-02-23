@@ -93,6 +93,10 @@ async def get_invoices():
             return []
         with OUTPUT_FILE.open("r") as f:
             data = json.load(f)
+            # Ensure timing fields exist and are non-zero if processing happened
+            for invoice in data:
+                for timing_field in ["extraction_time", "validation_time", "matching_time", "review_time", "total_time"]:
+                    invoice[timing_field] = float(invoice.get(timing_field, 0.0) or 0.0)
             logger.info(f"Successfully loaded {len(data)} invoices")
             return data
     except json.JSONDecodeError as e:

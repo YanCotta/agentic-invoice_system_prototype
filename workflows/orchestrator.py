@@ -1,6 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from dotenv import load_dotenv
 import logging
 import asyncio
 import json
@@ -13,6 +14,8 @@ from agents.extractor_agent import InvoiceExtractionAgent
 from agents.validator_agent import InvoiceValidationAgent
 from agents.matching_agent import PurchaseOrderMatchingAgent
 from agents.human_review_agent import HumanReviewAgent
+
+load_dotenv()  # Load environment variables from .env
 
 class InvoiceProcessingWorkflow:
     def __init__(self):

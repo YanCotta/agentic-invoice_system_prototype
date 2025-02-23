@@ -4,6 +4,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import logging
 import asyncio
 import json
+from pathlib import Path
+import uuid
 from config.logging_config import logger  # Import singleton logger
 from config.monitoring import Monitoring  # Import Monitoring class
 from agents.extractor_agent import InvoiceExtractionAgent
@@ -57,8 +59,12 @@ class InvoiceProcessingWorkflow:
                 "confidence": extracted_data.confidence,
                 "po_number": extracted_data.po_number,
                 "tax_amount": extracted_data.tax_amount,
-                "currency": extracted_data.currency
+                "currency": extracted_data.currency,
+                "status": "extracted",  # Add status to track progress
+                "extraction_time": extraction_time
             }
+            # Save initial extraction data
+            self._save_invoice_entry(extracted_dict)
         except Exception as e:
             logger.error(f"Extraction failed after retries: {str(e)}")
             extraction_time = monitoring.stop_timer("extraction")
@@ -79,7 +85,14 @@ class InvoiceProcessingWorkflow:
             validation_result = await self._retry_with_backoff(lambda: self.validation_agent.run(extracted_data))
             validation_time = monitoring.stop_timer("validation")
             logger.info(f"Validation result: {validation_result}, time: {validation_time:.2f}s")
-            
+            # Update and save after validation
+            extracted_dict.update({
+                "validation_status": validation_result.status,
+                "validation_errors": validation_result.errors,
+                "validation_time": validation_time,
+                "status": "validated"
+            })
+            self._save_invoice_entry(extracted_dict)
         except Exception as e:
             logger.error(f"Validation failed after retries: {str(e)}")
             validation_time = monitoring.stop_timer("validation")
@@ -101,6 +114,13 @@ class InvoiceProcessingWorkflow:
             matching_result = await self._retry_with_backoff(lambda: self.matching_agent.run(extracted_data))
             matching_time = monitoring.stop_timer("matching")
             logger.info(f"Matching result: {matching_result}, time: {matching_time:.2f}s")
+            # Update and save after matching
+            extracted_dict.update({
+                "matching_status": matching_result["status"],
+                "matching_time": matching_time,
+                "status": "matched"
+            })
+            self._save_invoice_entry(extracted_dict)
         except Exception as e:
             logger.error(f"Matching failed after retries: {str(e)}")
             matching_time = monitoring.stop_timer("matching")
@@ -124,6 +144,14 @@ class InvoiceProcessingWorkflow:
             review_result = await self._retry_with_backoff(lambda: self.review_agent.run(extracted_data, validation_result))
             review_time = monitoring.stop_timer("review")
             logger.info(f"Review result: {review_result}, time: {review_time:.2f}s")
+            # Update and save after review
+            extracted_dict.update({
+                "review_status": review_result.get("status", "unknown"),
+                "review_time": review_time,
+                "status": "completed",
+                "total_time": extraction_time + validation_time + matching_time + review_time
+            })
+            self._save_invoice_entry(extracted_dict)
         except Exception as e:
             logger.error(f"Review failed after retries: {str(e)}")
             review_time = monitoring.stop_timer("review")
@@ -187,22 +215,40 @@ class InvoiceProcessingWorkflow:
             
             # Update existing entry or add new one
             invoice_number = invoice_entry.get("invoice_number")
+            if not invoice_number:
+                logger.warning("Invoice entry missing invoice_number, generating temporary ID")
+                invoice_number = f"TEMP_{uuid.uuid4()}"
+                invoice_entry["invoice_number"] = invoice_number
+
+            # Find and update existing entry or append new one
             updated = False
             for i, inv in enumerate(all_invoices):
                 if inv.get("invoice_number") == invoice_number:
+                    # Preserve certain fields from existing entry
+                    preserve_fields = ["document_path"]
+                    for field in preserve_fields:
+                        if field in inv and field not in invoice_entry:
+                            invoice_entry[field] = inv[field]
                     all_invoices[i] = invoice_entry
                     updated = True
+                    logger.info(f"Updated existing invoice entry: {invoice_number}")
                     break
+            
             if not updated:
                 all_invoices.append(invoice_entry)
+                logger.info(f"Added new invoice entry: {invoice_number}")
             
+            # Write updated data back to file
             with open(output_file, "w") as f:
                 json.dump(all_invoices, f, indent=4)
-            logger.info(f"Saved invoice entry to {output_file}")
+            logger.info(f"Successfully saved invoice data to {output_file}")
             
-            # Save to anomalies.json if needs review
-            if invoice_entry.get("review_status") == "needs_review":
-                anomalies_file = "data/processed/anomalies.json"
+            # Save to anomalies.json if needs review or has validation errors
+            anomalies_file = "data/processed/anomalies.json"
+            if (invoice_entry.get("review_status") == "needs_review" or 
+                invoice_entry.get("validation_status") == "failed" or
+                invoice_entry.get("confidence", 1.0) < 0.8):
+                
                 try:
                     if os.path.exists(anomalies_file):
                         with open(anomalies_file, "r") as f:
@@ -212,13 +258,25 @@ class InvoiceProcessingWorkflow:
                 except (FileNotFoundError, json.JSONDecodeError):
                     anomalies = []
                 
-                anomalies.append(invoice_entry)
-                with open(anomalies_file, "w") as f:
-                    json.dump(anomalies, f, indent=4)
-                logger.info(f"Saved anomaly to {anomalies_file}")
+                # Check if this anomaly is already recorded
+                anomaly_exists = any(
+                    a.get("invoice_number") == invoice_entry.get("invoice_number")
+                    for a in anomalies
+                )
+                
+                if not anomaly_exists:
+                    anomalies.append({
+                        **invoice_entry,
+                        "anomaly_reason": "Low confidence" if invoice_entry.get("confidence", 1.0) < 0.8
+                                        else "Validation failed" if invoice_entry.get("validation_status") == "failed"
+                                        else "Needs review"
+                    })
+                    with open(anomalies_file, "w") as f:
+                        json.dump(anomalies, f, indent=4)
+                    logger.info(f"Saved anomaly to {anomalies_file}")
                 
         except Exception as e:
-            logger.error(f"Failed to save invoice entry: {str(e)}")
+            logger.error(f"Failed to save invoice entry: {str(e)}", exc_info=True)
 
 async def main():
     workflow = InvoiceProcessingWorkflow()

@@ -51,7 +51,7 @@ class InvoiceValidationAgent(BaseAgent):
                 invoice_data.review_status = "needs_review"
                 logger.debug(f"Invoice {invoice_data.invoice_number}: Invalid date format")
 
-        # Validate total amount
+        # Validate total amount for GBP
         if not invoice_data.total_amount:
             errors["total_amount"] = "Missing total amount"
             invoice_data.review_status = "needs_review"
@@ -63,7 +63,7 @@ class InvoiceValidationAgent(BaseAgent):
                     invoice_data.review_status = "needs_review"
                     logger.debug(f"Invoice {invoice_data.invoice_number}: Non-positive amount: {invoice_data.total_amount}")
                 elif invoice_data.total_amount > Decimal('1000000'):
-                    errors["total_amount"] = "Amount exceeds maximum threshold"
+                    errors["total_amount"] = "Amount exceeds maximum threshold (£1,000,000)"
                     invoice_data.review_status = "needs_review"
                     logger.debug(f"Invoice {invoice_data.invoice_number}: Amount exceeds limit: {invoice_data.total_amount}")
             except (ValueError, TypeError, InvalidOperation):
@@ -71,22 +71,27 @@ class InvoiceValidationAgent(BaseAgent):
                 invoice_data.review_status = "needs_review"
                 logger.debug(f"Invoice {invoice_data.invoice_number}: Invalid amount format")
 
-        # Currency validation if present
-        if invoice_data.currency and len(invoice_data.currency) != 3:
-            errors["currency"] = "Invalid currency code format"
+        # Currency validation - ensure GBP
+        if invoice_data.currency != "GBP":
+            errors["currency"] = "Only GBP currency is supported"
             invoice_data.review_status = "needs_review"
-            logger.debug(f"Invoice {invoice_data.invoice_number}: Invalid currency code: {invoice_data.currency}")
+            logger.debug(f"Invoice {invoice_data.invoice_number}: Invalid currency: {invoice_data.currency}")
 
-        # Tax amount validation if present
+        # Tax amount validation for GBP
         if invoice_data.tax_amount:
-            if invoice_data.tax_amount > invoice_data.total_amount:
-                errors["tax_amount"] = "Tax amount greater than total amount"
+            try:
+                if invoice_data.tax_amount > invoice_data.total_amount:
+                    errors["tax_amount"] = "Tax amount greater than total amount"
+                    invoice_data.review_status = "needs_review"
+                    logger.debug(f"Invoice {invoice_data.invoice_number}: Tax > Total: {invoice_data.tax_amount} > {invoice_data.total_amount}")
+                elif invoice_data.tax_amount < Decimal('0'):
+                    errors["tax_amount"] = "Negative tax amount"
+                    invoice_data.review_status = "needs_review"
+                    logger.debug(f"Invoice {invoice_data.invoice_number}: Negative tax: {invoice_data.tax_amount}")
+            except (ValueError, TypeError, InvalidOperation):
+                errors["tax_amount"] = "Invalid tax amount format"
                 invoice_data.review_status = "needs_review"
-                logger.debug(f"Invoice {invoice_data.invoice_number}: Tax > Total: {invoice_data.tax_amount} > {invoice_data.total_amount}")
-            elif invoice_data.tax_amount < Decimal('0'):
-                errors["tax_amount"] = "Negative tax amount"
-                invoice_data.review_status = "needs_review"
-                logger.debug(f"Invoice {invoice_data.invoice_number}: Negative tax: {invoice_data.tax_amount}")
+                logger.debug(f"Invoice {invoice_data.invoice_number}: Invalid tax amount format")
 
         # Run anomaly detection with enhanced error capture
         try:

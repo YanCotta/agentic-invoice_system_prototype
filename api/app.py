@@ -17,6 +17,7 @@ import uuid
 print("uuid imported")
 import logging
 print("logging imported")
+from glob import glob  # added for process_all_invoices endpoint
 
 logger = logging.getLogger("InvoiceProcessing")
 
@@ -26,6 +27,21 @@ workflow = InvoiceProcessingWorkflow()
 print("Workflow instance created")
 
 OUTPUT_FILE = Path("data/processed/structured_invoices.json")
+
+def save_invoice(invoice_entry, output_file="data/processed/structured_invoices.json"):
+    import os, json
+    os.makedirs("data/processed", exist_ok=True)
+    try:
+        if os.path.exists(output_file):
+            with open(output_file, 'r') as f:
+                all_invoices = json.load(f)
+        else:
+            all_invoices = []
+    except json.JSONDecodeError:
+        all_invoices = []
+    all_invoices.append(invoice_entry)
+    with open(output_file, 'w') as f:
+        json.dump(all_invoices, f, indent=4)
 
 @app.post("/api/upload_invoice")
 async def upload_invoice(file: UploadFile = File(...)):
@@ -58,3 +74,15 @@ async def get_invoices():
     except Exception as e:
         logger.error(f"Error fetching invoices: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch invoices: {str(e)}")
+
+@app.get("/api/process_all_invoices")
+async def process_all_invoices():
+    """Process all invoice PDFs from data/raw/invoices and save their extracted data."""
+    invoice_files = glob("data/raw/invoices/*.pdf")
+    results = []
+    for file in invoice_files:
+        result = await workflow.process_invoice(file)
+        # Save just the extracted data
+        save_invoice(result.get('extracted_data', {}))
+        results.append(result)
+    return {"message": f"Processed {len(results)} invoices"}

@@ -15,6 +15,10 @@ from pathlib import Path
 print("Path imported")
 import uuid
 print("uuid imported")
+import logging
+print("logging imported")
+
+logger = logging.getLogger("InvoiceProcessing")
 
 app = FastAPI(title="Brim Invoice Processing API")
 print("App created")
@@ -41,6 +45,16 @@ async def upload_invoice(file: UploadFile = File(...)):
 async def get_invoices():
     """Fetch all processed invoices."""
     try:
-        return json.load(OUTPUT_FILE.open("r")) if OUTPUT_FILE.exists() else []
+        if not OUTPUT_FILE.exists():
+            logger.info("Structured invoices file not found, returning empty list")
+            return []
+        with OUTPUT_FILE.open("r") as f:
+            data = json.load(f)
+            logger.info(f"Successfully loaded {len(data)} invoices")
+            return data
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error: {str(e)}")
+        return []
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching invoices: {str(e)}")
+        logger.error(f"Error fetching invoices: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch invoices: {str(e)}")

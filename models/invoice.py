@@ -12,6 +12,8 @@ class InvoiceData(BaseModel):
     invoice_date: date = Field(..., description="Date of invoice issuance")
     total_amount: Decimal = Field(..., description="Total invoice amount")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Overall confidence score of extraction")
+    review_status: Optional[str] = Field(None, description="Review status: needs_review, pending, or approved")
+    error_message: Optional[str] = Field(None, description="Error message if processing failed")
     po_number: Optional[str] = Field(None, description="Purchase Order reference number")
     tax_amount: Optional[Decimal] = Field(None, description="Tax amount if specified")
     currency: Optional[str] = Field(None, description="Invoice currency code")

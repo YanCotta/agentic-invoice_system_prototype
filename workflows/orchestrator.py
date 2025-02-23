@@ -6,6 +6,7 @@ import asyncio
 import json
 from pathlib import Path
 import uuid
+from datetime import datetime  # Add this import
 from config.logging_config import logger  # Import singleton logger
 from config.monitoring import Monitoring  # Import Monitoring class
 from agents.extractor_agent import InvoiceExtractionAgent
@@ -243,11 +244,13 @@ class InvoiceProcessingWorkflow:
                 json.dump(all_invoices, f, indent=4)
             logger.info(f"Successfully saved invoice data to {output_file}")
             
-            # Save to anomalies.json if needs review or has validation errors
+            # Save to anomalies.json if meets any anomaly criteria
             anomalies_file = "data/processed/anomalies.json"
             if (invoice_entry.get("review_status") == "needs_review" or 
                 invoice_entry.get("validation_status") == "failed" or
-                invoice_entry.get("confidence", 1.0) < 0.8):
+                invoice_entry.get("confidence", 1.0) < 0.8 or
+                invoice_entry.get("validation_errors") or
+                invoice_entry.get("status") == "error"):
                 
                 try:
                     if os.path.exists(anomalies_file):
@@ -258,22 +261,40 @@ class InvoiceProcessingWorkflow:
                 except (FileNotFoundError, json.JSONDecodeError):
                     anomalies = []
                 
-                # Check if this anomaly is already recorded
-                anomaly_exists = any(
-                    a.get("invoice_number") == invoice_entry.get("invoice_number")
-                    for a in anomalies
-                )
+                # Determine anomaly reason(s)
+                reasons = []
+                if invoice_entry.get("confidence", 1.0) < 0.8:
+                    reasons.append("Low confidence")
+                if invoice_entry.get("validation_status") == "failed":
+                    reasons.append("Validation failed")
+                if invoice_entry.get("review_status") == "needs_review":
+                    reasons.append("Needs review")
+                if invoice_entry.get("status") == "error":
+                    reasons.append(f"Processing error: {invoice_entry.get('message', 'Unknown error')}")
                 
-                if not anomaly_exists:
-                    anomalies.append({
-                        **invoice_entry,
-                        "anomaly_reason": "Low confidence" if invoice_entry.get("confidence", 1.0) < 0.8
-                                        else "Validation failed" if invoice_entry.get("validation_status") == "failed"
-                                        else "Needs review"
-                    })
-                    with open(anomalies_file, "w") as f:
-                        json.dump(anomalies, f, indent=4)
-                    logger.info(f"Saved anomaly to {anomalies_file}")
+                # Create anomaly entry with detailed information
+                anomaly_entry = {
+                    **invoice_entry,
+                    "anomaly_reasons": reasons,
+                    "detection_time": str(datetime.now().isoformat()),
+                    "resolved": False
+                }
+                
+                # Update existing or add new
+                invoice_number = invoice_entry.get("invoice_number")
+                existing_idx = next((i for i, a in enumerate(anomalies) 
+                                  if a.get("invoice_number") == invoice_number), None)
+                
+                if existing_idx is not None:
+                    anomalies[existing_idx] = anomaly_entry
+                    logger.info(f"Updated existing anomaly for invoice {invoice_number}")
+                else:
+                    anomalies.append(anomaly_entry)
+                    logger.info(f"Added new anomaly for invoice {invoice_number}")
+                
+                with open(anomalies_file, "w") as f:
+                    json.dump(anomalies, f, indent=4)
+                logger.info(f"Saved anomaly to {anomalies_file}")
                 
         except Exception as e:
             logger.error(f"Failed to save invoice entry: {str(e)}", exc_info=True)

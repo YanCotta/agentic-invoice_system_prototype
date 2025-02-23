@@ -10,6 +10,7 @@ from agents.base_agent import BaseAgent
 from models.invoice import InvoiceData
 from models.validation_schema import ValidationResult
 from data_processing.anomaly_detection import AnomalyDetector
+from decimal import Decimal
 
 class InvoiceValidationAgent(BaseAgent):
     def __init__(self):
@@ -58,18 +59,37 @@ class InvoiceValidationAgent(BaseAgent):
             errors["confidence"] = f"Low confidence score: {invoice_data.confidence}"
             logger.debug("Confidence below threshold")
 
+        # Add more validation rules
+        if invoice_data.total_amount:
+            if invoice_data.total_amount > Decimal('1000000'):
+                errors["total_amount"] = "Amount exceeds maximum threshold"
+                logger.debug("Total amount exceeds threshold")
+            if invoice_data.tax_amount and invoice_data.tax_amount > invoice_data.total_amount:
+                errors["tax_amount"] = "Tax amount greater than total amount"
+                logger.debug("Invalid tax amount")
+
+        # Currency validation
+        if invoice_data.currency and len(invoice_data.currency) != 3:
+            errors["currency"] = "Invalid currency code format"
+            logger.debug("Invalid currency code")
+
+        # Run anomaly detection with enhanced logging
         logger.debug("Running anomaly detection")
-        anomaly_errors = await asyncio.to_thread(self.anomaly_detector.detect_anomalies, invoice_data)
-        errors.update(anomaly_errors)
-        if anomaly_errors:
-            logger.debug(f"Anomalies detected: {anomaly_errors}")
+        try:
+            anomaly_errors = await asyncio.to_thread(self.anomaly_detector.detect_anomalies, invoice_data)
+            if anomaly_errors:
+                logger.info(f"Anomalies detected for invoice {invoice_data.invoice_number}: {anomaly_errors}")
+                errors.update(anomaly_errors)
+        except Exception as e:
+            logger.error(f"Anomaly detection failed: {str(e)}", exc_info=True)
+            errors["anomaly_detection"] = f"Failed: {str(e)}"
 
         validation_result = ValidationResult(
             status="failed" if errors else "valid",
             errors=errors
         )
-        logger.info(f"Validation completed: {validation_result}")
-        logger.debug(f"Validation result details: status={validation_result.status}, errors={validation_result.errors}")
+        logger.info(f"Validation completed for {invoice_data.invoice_number}: {validation_result.status}")
+        logger.debug(f"Validation result details: {validation_result.model_dump()}")
         return validation_result
 
 if __name__ == "__main__":

@@ -37,8 +37,19 @@ if page == "Upload":
     
     if uploaded_file:
         with st.spinner("Processing invoice..."):
-            response = requests.post(f"{API_URL}/api/upload_invoice", files={"file": uploaded_file})
-            if response.status_code == 200:
+            try:
+                response = requests.post(f"{API_URL}/api/upload_invoice", files={"file": uploaded_file})
+                response.raise_for_status()
+            except requests.exceptions.RequestException as e:
+                st.error("Failed to connect to the server. Please check if the backend is running.")
+            except Exception as e:
+                if "ValidationError" in str(e):
+                    st.error("The uploaded document is missing required invoice fields. It has been flagged for manual review.")
+                elif "KeyError" in str(e) and "confidence" in str(e):
+                    st.error("The document could not be processed due to missing data. It has been flagged for manual review.")
+                else:
+                    st.error("An unexpected error occurred while processing the document. Please try again or contact support.")
+            else:
                 st.success("Invoice processed successfully!")
                 result = response.json()
                 st.json(result)  # Show full response
@@ -49,8 +60,6 @@ if page == "Upload":
                 st.write(f"- Matching: {result.get('matching_time', 0):.2f}s")
                 st.write(f"- Review: {result.get('review_time', 0):.2f}s")
                 st.write(f"- Total: {result.get('total_time', 0):.2f}s")
-            else:
-                st.error(f"Error: {response.text}")
 
 elif page == "Invoices":
     st.header("Processed Invoices")

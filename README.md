@@ -304,6 +304,31 @@ instead of react/next.js)
 - Resolved issues with module imports and file paths, ensuring the system runs smoothly.
 - Tested the end-to-end functionality, including uploading a PDF invoice, processing it, and reviewing the results.
 
+### Dependency Issues
+- Resolved missing modules by installing:
+  - `faiss-cpu` via `pip install faiss-cpu`
+  - `python-multipart` via `pip install python-multipart`
+
+### PDF Processing Changes
+- Implemented logic to keep original PDFs intact (i.e., preventing them from moving to `data/processed/` after extraction)
+
+### Non-Invoice PDF Handling
+- Added flagging for non-invoice PDFs (e.g., resumes) to trigger human review and provide user-friendly error messages to avoid KeyErrors on missing invoice fields
+
+### Anomaly Flagging
+- Ensured anomalies (e.g., unusual amounts or formats) are flagged and clearly displayed on the review page
+
+### Currency Adjustment
+- Changed the default currency from USD to GBP in `models/invoice.py` (within the Config class’s `json_schema_extra`)
+- Removed other hardcoded USD references throughout the project
+
+### Import Errors Fixes
+- In `agents/extractor_agent.py`: Added missing imports using `from openai import OpenAI` and `from dotenv import load_dotenv` after installing via `pip install openai python-dotenv`
+- In `agents/fallback_agent.py`: Fixed undefined functions by importing `extract_text_from_pdf` from `data_processing/document_parser` and `ocr_process_image` from `data_processing/ocr_helper`
+- In `frontend/app.py`: Resolved missing imports with `import streamlit as st`, `import requests`, and `import pandas as pd` after installing via `pip install streamlit requests pandas`
+- In `models/invoice.py`: Addressed missing pydantic import with `from pydantic import BaseModel` (installed via `pip install pydantic`)
+
+
 ---
 
 ## 🚀 Remaining Workflow (Days 5–10)
@@ -340,13 +365,6 @@ pip install -r requirements.txt
 - pydantic (>=2.0.0)
 - fuzzywuzzy (>=0.18.0)
 - aiofiles (>=23.2.1)
-
-### Ollama Setup
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull mistral:7b
-ollama run mistral:7b "test"
-```
 
 ### Data Verification
 1. Ensure PDFs are located in:
@@ -463,4 +481,3 @@ The Brim Invoice Processing System is a comprehensive multi-agent solution featu
 - Low confidence scores (< 0.9) trigger human review
 - The system processes PDFs asynchronously, so there might be a brief delay before results appear
 - All processing metrics and logs are stored for analysis
-

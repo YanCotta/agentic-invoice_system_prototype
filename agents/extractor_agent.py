@@ -51,7 +51,8 @@ class InvoiceExtractionTool:
             "vendor_name": {"value": "ABC Corp Ltd.", "confidence": 0.95},
             "invoice_number": {"value": "INV-2024-001", "confidence": 0.98},
             "invoice_date": {"value": "2024-02-18", "confidence": 0.90},
-            "total_amount": {"value": "7595.00", "confidence": 0.99}
+            "total_amount": {"value": "7595.00", "confidence": 0.99},
+            "currency": {"value": "GBP", "confidence": 1.0}
         }
 
 class InvoiceExtractionAgent(BaseAgent):
@@ -107,7 +108,7 @@ class InvoiceExtractionAgent(BaseAgent):
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
-                        {"role": "system", "content": "Extract the following fields from the invoice text and return them in JSON format: vendor_name, invoice_number, invoice_date, total_amount. Ensure total_amount is a numeric string without currency symbols."},
+                        {"role": "system", "content": "Extract the following fields from the invoice text and return them in JSON format: vendor_name, invoice_number, invoice_date, total_amount. Convert any amounts to GBP if not already in GBP. Ensure total_amount is a numeric string without currency symbols. Always set currency field to 'GBP'."},
                         {"role": "user", "content": invoice_text}
                     ],
                     response_format={"type": "json_object"}
@@ -117,7 +118,8 @@ class InvoiceExtractionAgent(BaseAgent):
                     "vendor_name": json_data.get("vendor_name", ""),
                     "invoice_number": json_data.get("invoice_number", ""),
                     "invoice_date": json_data.get("invoice_date", ""),
-                    "total_amount": json_data.get("total_amount", "")
+                    "total_amount": json_data.get("total_amount", ""),
+                    "currency": "GBP"  # Always set to GBP
                 }
                 cleaned_total_amount = re.sub(r'[^\d.]', '', extracted_data["total_amount"])
                 extracted_data["total_amount"] = cleaned_total_amount

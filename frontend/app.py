@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import pandas as pd
+from datetime import datetime  # Add datetime import
 
 API_URL = "http://localhost:8000"
 
@@ -80,9 +81,28 @@ elif page == "Review":
         invoices = response.json()
         # Updated filter to only include invoices that need human review
         flagged = [inv for inv in invoices if inv.get("review_status") == "needs_review"]
+        
+        if not flagged:
+            st.info("No invoices currently need review.")
+        
         for index, inv in enumerate(flagged):
-            with st.expander(f"Invoice {inv['invoice_number']} (Confidence: {inv.get('confidence', 1.0):.2f})"):
-                # Updated to handle PDFs from raw directory
+            with st.expander(f"Invoice {inv['invoice_number']} ({inv.get('error_message', 'Needs Review')})"):
+                # Display error message if present
+                if inv.get("error_message"):
+                    st.error(inv["error_message"])
+                
+                # Display confidence score with color coding
+                confidence = inv.get("confidence", 0.0)
+                color = "red" if confidence < 0.5 else "orange" if confidence < 0.8 else "green"
+                st.markdown(f"**Confidence Score:** <span style='color:{color}'>{confidence:.2%}</span>", unsafe_allow_html=True)
+                
+                # Show validation errors if present
+                if inv.get("validation_errors"):
+                    st.error("Validation Errors:")
+                    for field, error in inv["validation_errors"].items():
+                        st.write(f"- {field}: {error}")
+                
+                # PDF download button with unique key
                 if inv.get("original_path"):
                     pdf_response = requests.get(f"{API_URL}/api/invoice_pdf/{inv['invoice_number']}")
                     if pdf_response.status_code == 200:
@@ -98,12 +118,27 @@ elif page == "Review":
                 else:
                     st.warning("Original PDF path not recorded")
                 
+                # Edit form with unique key
                 with st.form(key=f"form_{index}_{inv['invoice_number']}"):
                     vendor_name = st.text_input("Vendor Name", value=inv.get("vendor_name", ""))
                     invoice_number = st.text_input("Invoice Number", value=inv.get("invoice_number", ""))
-                    invoice_date = st.date_input("Invoice Date", value=inv.get("invoice_date", None))
+                    invoice_date = st.date_input("Invoice Date", value=pd.to_datetime(inv.get("invoice_date")).date() if inv.get("invoice_date") else None)
                     total_amount = st.number_input("Total Amount", value=float(inv.get("total_amount", 0.0)))
                     po_number = st.text_input("PO Number", value=inv.get("po_number", ""))
+                    
+                    # Add review resolution options
+                    resolution_status = st.selectbox(
+                        "Resolution",
+                        ["pending", "approved", "rejected"],
+                        key=f"resolution_{index}_{inv['invoice_number']}"
+                    )
+                    
+                    review_notes = st.text_area(
+                        "Review Notes",
+                        value=inv.get("review_notes", ""),
+                        key=f"notes_{index}_{inv['invoice_number']}"
+                    )
+                    
                     submit = st.form_submit_button("Save Changes")
                     if submit:
                         updated_invoice = {
@@ -111,7 +146,10 @@ elif page == "Review":
                             "invoice_number": invoice_number,
                             "invoice_date": str(invoice_date),
                             "total_amount": total_amount,
-                            "po_number": po_number
+                            "po_number": po_number,
+                            "review_status": resolution_status,
+                            "review_notes": review_notes,
+                            "review_date": datetime.now().isoformat()
                         }
                         save_updated_invoice(updated_invoice)
     else:

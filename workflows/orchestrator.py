@@ -74,38 +74,11 @@ class InvoiceProcessingWorkflow:
             self._save_invoice_entry(invoice_entry)
             return invoice_entry
 
-        # Validation
         try:
             monitoring.start_timer("validation")
             validation_result = await self._retry_with_backoff(lambda: self.validation_agent.run(extracted_data))
             validation_time = monitoring.stop_timer("validation")
             logger.info(f"Validation completed: {validation_result}")
-            if validation_result.status != "valid":
-                logger.warning(f"Skipping PO matching due to validation failure: {validation_result}")
-                invoice_entry = {
-                    **extracted_dict,
-                    "validation_status": validation_result.status,
-                    "validation_errors": validation_result.errors,
-                    "matching_status": "skipped",
-                    "review_status": "skipped",
-                    "extraction_time": extraction_time,
-                    "validation_time": validation_time,
-                    "matching_time": 0,
-                    "review_time": 0,
-                    "total_time": extraction_time + validation_time
-                }
-                self._save_invoice_entry(invoice_entry)
-                return {
-                    "extracted_data": extracted_dict,
-                    "validation_result": validation_result.model_dump(),
-                    "matching_result": {"status": "skipped", "po_number": None, "match_confidence": 0.0},
-                    "review_result": {"status": "skipped", "invoice_data": extracted_dict},
-                    "extraction_time": extraction_time,
-                    "validation_time": validation_time,
-                    "matching_time": 0,
-                    "review_time": 0,
-                    "total_time": extraction_time + validation_time
-                }
         except Exception as e:
             logger.error(f"Validation failed after retries: {str(e)}")
             validation_time = monitoring.stop_timer("validation")
@@ -122,7 +95,6 @@ class InvoiceProcessingWorkflow:
             self._save_invoice_entry(invoice_entry)
             return invoice_entry
 
-        # Matching
         try:
             monitoring.start_timer("matching")
             matching_result = await self._retry_with_backoff(lambda: self.matching_agent.run(extracted_data))
@@ -146,7 +118,6 @@ class InvoiceProcessingWorkflow:
             self._save_invoice_entry(invoice_entry)
             return invoice_entry
 
-        # Review
         try:
             monitoring.start_timer("review")
             review_result = await self._retry_with_backoff(lambda: self.review_agent.run(extracted_data, validation_result))
@@ -170,13 +141,13 @@ class InvoiceProcessingWorkflow:
             self._save_invoice_entry(invoice_entry)
             return invoice_entry
 
-        # All steps completed successfully
         total_time = extraction_time + validation_time + matching_time + review_time
         invoice_entry = {
             **extracted_dict,
             "validation_status": validation_result.status,
-            "matching_status": matching_result["status"],
-            "review_status": review_result["status"],
+            "validation_errors": validation_result.errors,
+            "matching_status": matching_result.get("status", "unknown"),
+            "review_status": review_result.get("status", "unknown"),
             "extraction_time": extraction_time,
             "validation_time": validation_time,
             "matching_time": matching_time,

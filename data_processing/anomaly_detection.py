@@ -10,6 +10,7 @@ from models.invoice import InvoiceData
 from decimal import Decimal
 import json
 from pathlib import Path
+from datetime import datetime
 
 logger = setup_logging()
 
@@ -31,18 +32,41 @@ class AnomalyDetector:
         # Check for unreasonable values
         if invoice_data.total_amount <= Decimal('0'):
             anomalies["total_amount"] = f"Invalid amount: {invoice_data.total_amount}"
+        elif invoice_data.total_amount > Decimal('1000000'):
+            anomalies["total_amount"] = f"Unusually high amount: {invoice_data.total_amount}"
+        
+        # Check confidence scores
         if invoice_data.confidence < 0.8:
             anomalies["confidence"] = f"Low confidence score: {invoice_data.confidence}"
         
-        # If anomalies found, save them
+        # Date validation
+        if invoice_data.invoice_date:
+            today = datetime.now().date()
+            if invoice_data.invoice_date > today:
+                anomalies["invoice_date"] = f"Future date: {invoice_data.invoice_date}"
+            elif (today - invoice_data.invoice_date).days > 365:
+                anomalies["invoice_date"] = f"Invoice older than 1 year: {invoice_data.invoice_date}"
+        
+        # Tax amount validation
+        if invoice_data.tax_amount:
+            if invoice_data.tax_amount > invoice_data.total_amount:
+                anomalies["tax_amount"] = f"Tax amount ({invoice_data.tax_amount}) greater than total amount ({invoice_data.total_amount})"
+            elif invoice_data.tax_amount < Decimal('0'):
+                anomalies["tax_amount"] = f"Negative tax amount: {invoice_data.tax_amount}"
+        
+        # If anomalies found, save them with timestamp and details
         if anomalies:
             self._save_anomaly({
                 "invoice_number": invoice_data.invoice_number,
                 "vendor_name": invoice_data.vendor_name,
                 "anomalies": anomalies,
-                "invoice_data": invoice_data.model_dump()
+                "detection_time": datetime.now().isoformat(),
+                "invoice_data": invoice_data.model_dump(),
+                "severity": "high" if len(anomalies) > 2 else "medium" if len(anomalies) > 1 else "low",
+                "status": "detected"
             })
-            logger.info(f"Detected anomalies for invoice {invoice_data.invoice_number}: {anomalies}")
+            logger.info(f"Detected {len(anomalies)} anomalies for invoice {invoice_data.invoice_number}")
+            logger.debug(f"Anomaly details: {anomalies}")
         
         return anomalies
 

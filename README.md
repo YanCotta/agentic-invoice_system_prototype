@@ -393,6 +393,7 @@ The Brim Invoice Processing System is a comprehensive multi-agent solution featu
   3. **Install Dependencies**
     ```bash
     pip install -r requirements.txt
+    sudo apt-get install libblas-dev liblapack-dev
     ```
 
   4. **Create Environment File**

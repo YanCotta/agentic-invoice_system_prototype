@@ -52,18 +52,22 @@ class InvoiceProcessingWorkflow:
             extracted_data = await self._retry_with_backoff(lambda: self.extraction_agent.run(document_path))
             extraction_time = monitoring.stop_timer("extraction")
             logger.info(f"Extraction completed: {extracted_data}")
+            
+            # Ensure required fields are present with defaults
             extracted_dict = {
                 "vendor_name": extracted_data.vendor_name,
                 "invoice_number": extracted_data.invoice_number,
                 "invoice_date": extracted_data.invoice_date.strftime("%Y-%m-%d"),
                 "total_amount": str(extracted_data.total_amount),
-                "confidence": extracted_data.confidence,
+                "confidence": extracted_data.confidence if hasattr(extracted_data, 'confidence') else 0.1,
+                "review_status": extracted_data.review_status if hasattr(extracted_data, 'review_status') else "needs_review",
+                "error_message": extracted_data.error_message if hasattr(extracted_data, 'error_message') else None,
                 "po_number": extracted_data.po_number,
                 "tax_amount": extracted_data.tax_amount,
                 "currency": extracted_data.currency,
                 "status": "extracted",
                 "extraction_time": extraction_time,
-                "original_path": document_path  # Store original path instead of copying file
+                "original_path": document_path
             }
             # Save initial extraction data
             self._save_invoice_entry(extracted_dict)
@@ -73,6 +77,9 @@ class InvoiceProcessingWorkflow:
             invoice_entry = {
                 "status": "error",
                 "message": str(e),
+                "confidence": 0.1,
+                "review_status": "needs_review",
+                "error_message": f"Extraction failed: {str(e)}",
                 "extraction_time": extraction_time,
                 "validation_time": 0,
                 "matching_time": 0,

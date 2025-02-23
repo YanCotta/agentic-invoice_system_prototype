@@ -110,15 +110,27 @@ async def process_all_invoices():
         invoice_files = glob("data/raw/invoices/*.pdf")
         results = []
         for file in invoice_files:
-            result = await workflow.process_invoice(file)
-            invoice_number = result["extracted_data"].get("invoice_number")
-            if invoice_number:
-                pdf_path = Path(f"data/processed/{invoice_number}.pdf")
-                pdf_path.parent.mkdir(exist_ok=True)
-                shutil.copy2(file, pdf_path)  # Copy instead of move to preserve original
-            results.append(result)
-        return {"message": f"Processed {len(results)} invoices"}
+            try:
+                result = await workflow.process_invoice(file)
+                invoice_number = result["extracted_data"].get("invoice_number")
+                if invoice_number:
+                    pdf_path = Path(f"data/processed/{invoice_number}.pdf")
+                    pdf_path.parent.mkdir(exist_ok=True)
+                    shutil.copy2(file, pdf_path)  # Copy instead of move to preserve original
+                    logger.info(f"Saved PDF for invoice {invoice_number}")
+                results.append(result)
+            except Exception as e:
+                logger.error(f"Failed to process {file}: {str(e)}")
+                continue
+        
+        if results:
+            logger.info(f"Successfully processed {len(results)} invoices")
+            return {"message": f"Processed {len(results)} invoices"}
+        else:
+            logger.warning("No invoices were processed successfully")
+            return {"message": "No invoices were processed"}
     except Exception as e:
+        logger.error(f"Error in batch processing: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing invoices: {str(e)}")
 
 @app.get("/api/invoice_pdf/{invoice_number}")

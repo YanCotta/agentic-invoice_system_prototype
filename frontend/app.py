@@ -88,7 +88,8 @@ elif page == "Review":
                         label="Download PDF",
                         data=pdf_response.content,
                         file_name=f"{inv['invoice_number']}.pdf",
-                        mime="application/pdf"
+                        mime="application/pdf",
+                        key=f"download_btn_{inv['invoice_number']}_{index}"  # Added unique key
                     )
                 else:
                     st.write("PDF not available")

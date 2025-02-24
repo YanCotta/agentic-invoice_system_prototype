@@ -24,6 +24,7 @@ from fastapi.responses import FileResponse
 import shutil
 import atexit
 from datetime import datetime  # Add datetime import
+from api.review_api import router as review_router
 
 logger = logging.getLogger("InvoiceProcessing")
 
@@ -163,6 +164,65 @@ async def get_invoice_pdf(invoice_number: str):
         logger.error(f"Error retrieving PDF for invoice {invoice_number}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.put("/api/invoices/{invoice_number}")
+async def update_invoice(invoice_number: str, updated_data: dict):
+    """Update an invoice in the structured_invoices.json file."""
+    try:
+        if not OUTPUT_FILE.exists():
+            raise HTTPException(status_code=404, detail="No invoices found")
+        
+        with OUTPUT_FILE.open("r") as f:
+            invoices = json.load(f)
+        
+        for invoice in invoices:
+            if invoice["invoice_number"] == invoice_number:
+                # Preserve metadata fields
+                preserved_fields = ["original_path", "extraction_time", "validation_time", "matching_time"]
+                for field in preserved_fields:
+                    if field in invoice and field not in updated_data:
+                        updated_data[field] = invoice[field]
+                
+                # Update timestamp
+                updated_data["last_modified"] = datetime.now().isoformat()
+                
+                # Update the invoice
+                invoice.update(updated_data)
+                
+                with OUTPUT_FILE.open("w") as f:
+                    json.dump(invoices, f, indent=4)
+                return {"status": "success", "message": f"Invoice {invoice_number} updated"}
+        
+        raise HTTPException(status_code=404, detail=f"Invoice {invoice_number} not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/metrics")
+async def get_metrics():
+    """Return basic processing metrics."""
+    try:
+        if not OUTPUT_FILE.exists():
+            return {
+                "total_invoices": 0,
+                "avg_confidence": 0,
+                "avg_processing_time": 0
+            }
+        
+        with OUTPUT_FILE.open("r") as f:
+            invoices = json.load(f)
+        
+        total = len(invoices)
+        avg_confidence = sum(float(inv.get("confidence", 0) or 0) for inv in invoices) / total if total > 0 else 0
+        avg_time = sum(float(inv.get("total_time", 0) or 0) for inv in invoices) / total if total > 0 else 0
+        
+        return {
+            "total_invoices": total,
+            "avg_confidence": round(avg_confidence, 3),
+            "avg_processing_time": round(avg_time, 2)
+        }
+    except Exception as e:
+        logger.error(f"Error calculating metrics: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Clean up temp directory on application exit
 def cleanup_temp_directory():
     temp_dir = Path("data/temp")
@@ -171,3 +231,10 @@ def cleanup_temp_directory():
         logger.info("Cleaned up temporary files directory")
 
 atexit.register(cleanup_temp_directory)
+
+# Include the review router
+app.include_router(review_router)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("api.app:app", host="0.0.0.0", port=8000, reload=True)

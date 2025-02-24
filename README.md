@@ -68,10 +68,7 @@ brim_invoice_streamlit/
 ├── api/
 │   ├── __init__.py
 │   ├── app.py
-│   ├── human_review_api.py
-│   ├── review_api.py
-│   └── __pycache__/
-│       └── … (compiled files)
+│   └── review_api.py
 ├── config/
 │   ├── __init__.py
 │   ├── logging_config.py
@@ -85,7 +82,6 @@ brim_invoice_streamlit/
 │   │   └── structured_invoices.json
 │   ├── raw/
 │   │   └── invoices/ *pdfs
-│   │   └── test_invoice.txt
 │   │   └── vendor_data.csv
 │   ├── temp/
 │   │   └── … (temporary files)
@@ -114,13 +110,11 @@ brim_invoice_streamlit/
 │   ├── load_tests.py
 │   ├── test_agents.py
 │   ├── test_endpoints.py
-│   ├── test_frontend.js
 │   ├── test_utils.py
 │   └── test_workflows.py
 └── workflows/
     ├── __init__.py
     ├── orchestrator.py
-    ├── pipeline.py
     └── __pycache__/
         └── … (compiled files)
 
@@ -272,6 +266,14 @@ brim_invoice_streamlit/
      - Issue: Inconsistent data formats
      - Solution: Standardized processing
 
+### Day 6: Project Refinement and Optimization
+- Objectives Achieved: Refined project structure, eliminated redundancy, and improved integration for production readiness.
+- Technical Fixes:
+  - Merged `api/human_review_api.py` into `api/review_api.py`, updating all references to use `api/review_api.py` on port 8000.
+  - Removed `workflows/pipeline.py` as its functionality is now covered by `workflows/orchestrator.py`.
+  - Verified `frontend/app.py` handles only UI logic while integrating with backend APIs.
+  - Removed unnecessary files: `data/raw/test_invoice.txt` and `tests/test_frontend.js`.
+
 ## 🔧 Setup Guide
 
 ### Prerequisites
@@ -319,16 +321,13 @@ brim_invoice_streamlit/
 
 1. **Backend APIs**
    ```bash
-   # Terminal 1: Main API
-   python -m uvicorn api.app:app --reload --port 8000
-
-   # Terminal 2: Review API
-   python -m uvicorn api.human_review_api:app --reload --port 8001
+   # Terminal 1: Main API (includes review functionality)
+   python -m uvicorn api.review_api:app --reload --port 8000
    ```
 
 2. **Frontend Application**
    ```bash
-   # Terminal 3: Streamlit Interface
+   # Terminal 2: Streamlit Interface
    streamlit run frontend/app.py
    ```
 
@@ -337,7 +336,6 @@ brim_invoice_streamlit/
 - **Main Interface**: http://localhost:8501
 - **API Endpoints**:
   - Main API: http://localhost:8000
-  - Review API: http://localhost:8001
 
 ### Core Workflows
 
@@ -367,23 +365,15 @@ brim_invoice_streamlit/
 
 ## 📈 Project Progress
 
-### Completed (Days 1-5)
+### Completed (Days 1-6)
 - ✅ Multi-agent system implementation
 - ✅ Streamlit frontend development
 - ✅ OpenAI API integration
 - ✅ RAG-based error handling
 - ✅ System optimizations
 
-### Remaining Tasks (Days 6-7)
-- 📋 Day 6: Documentation & Testing
-  - Expand documentation
-  - Enhance test coverage
-  - Refactor codebase
-
-- 📋 Day 7: Finalization
-  - End-to-end testing
-  - Performance optimization
-  - Submission preparation
+### Remaining Tasks (Day 7)
+- Documentation & Testing: Expand documentation, enhance test coverage, and finalize performance optimizations.
 
 ### Recent Improvements
 - 🆕 Enhanced file management

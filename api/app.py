@@ -33,6 +33,10 @@ print("App created")
 workflow = InvoiceProcessingWorkflow()
 print("Workflow instance created")
 
+@app.get("/")
+async def root():
+    return {"message": "Brim Invoice Processing API"}
+
 OUTPUT_FILE = Path("data/processed/structured_invoices.json")
 
 def save_invoice(invoice_entry, output_file="data/processed/structured_invoices.json"):

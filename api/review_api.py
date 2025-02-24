@@ -1,15 +1,16 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv  # Added dotenv loading
+from dotenv import load_dotenv
 import os
 import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-load_dotenv()  # Load environment variables
+load_dotenv()
 
 app = FastAPI(title="Invoice Review API")
+router = APIRouter(prefix="/review")
 
 # Move data models to top for clarity
 class ReviewRequest(BaseModel):
@@ -50,7 +51,7 @@ def save_invoices(invoices: list):
     with INVOICES_FILE.open("w") as f:
         json.dump(invoices, f, indent=4)
 
-@app.get("/review/{invoice_id}", response_model=ReviewResponse)
+@router.get("/{invoice_id}", response_model=ReviewResponse)
 async def get_review(invoice_id: str):
     return ReviewResponse(
         status="pending",
@@ -58,7 +59,7 @@ async def get_review(invoice_id: str):
         updated_invoice={}
     )
 
-@app.post("/review", response_model=ReviewResponse)
+@router.post("/", response_model=ReviewResponse)
 async def submit_review(review: ReviewRequest):
     veteran_reviewer_prompt = (
         "You are a veteran invoice reviewer. Review the provided corrections and determine the final invoice data. "
@@ -70,7 +71,7 @@ async def submit_review(review: ReviewRequest):
         updated_invoice=review.corrections
     )
 
-@app.post("/submit_correction", response_model=ReviewResponse)
+@router.post("/submit_correction", response_model=ReviewResponse)
 async def submit_correction(correction: ReviewRequest):
     try:
         # Save correction to a file (replace with database logic as needed)
@@ -85,7 +86,7 @@ async def submit_correction(correction: ReviewRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/api/invoices/{invoice_number}")
+@router.put("/invoices/{invoice_number}")
 async def update_invoice(invoice_number: str, update_data: InvoiceUpdate):
     """Update an invoice with review information and perform necessary validations."""
     try:
@@ -129,6 +130,8 @@ async def update_invoice(invoice_number: str, update_data: InvoiceUpdate):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating invoice: {str(e)}")
+
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn

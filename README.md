@@ -50,55 +50,80 @@ A sophisticated invoice processing system that leverages LangChain's multi-agent
 
 ### Project Structure
 ```
-brim_invoice_project/
-├── agents/                    # AI Agents
-│   ├── base_agent.py         # Base agent functionality
-│   ├── extractor_agent.py    # Data extraction (OpenAI GPT-4o-mini)
-│   ├── validator_agent.py    # Data validation
-│   ├── matching_agent.py     # PO matching logic
-│   ├── human_review_agent.py # Manual review handling
-│   └── fallback_agent.py     # Regex-based backup
-│
-├── api/                      # Backend Services
-│   ├── app.py               # Main FastAPI backend
-│   ├── human_review_api.py  # Review endpoints
-│   └── review_api.py        # Review logic
-│
-├── config/                   # Configuration
-│   ├── settings.py          # System settings
-│   ├── logging_config.py    # Logging setup
-│   └── monitoring.py        # Performance tracking
-│
-├── data/                    # Data Management
-│   ├── raw/                 # Source files
-│   │   ├── invoices/       # Main invoice PDFs
-│   │   ├── test_samples/   # Test PDFs
-│   │   └── vendor_data.csv # PO reference data
-│   ├── processed/          # Output storage
-│   │   ├── structured_invoices.json
-│   │   └── corrections.json
-│   └── temp/               # Temporary files
-│
-├── data_processing/         # Core Processing
-│   ├── document_parser.py  # PDF handling
-│   ├── ocr_helper.py      # OCR processing
+brim_invoice_streamlit/
+├── Dockerfile
+├── main.py
+├── README.md
+├── requirements.txt
+├── .gitignore
+├── agents/
+│   ├── __init__.py
+│   ├── base_agent.py
+│   ├── extractor_agent.py
+│   ├── fallback_agent.py
+│   ├── human_review_agent.py
+│   ├── matching_agent.py
+│   ├── validator_agent.py
+│   └── __pycache__/
+├── api/
+│   ├── __init__.py
+│   ├── app.py
+│   ├── human_review_api.py
+│   ├── review_api.py
+│   └── __pycache__/
+│       └── … (compiled files)
+├── config/
+│   ├── __init__.py
+│   ├── logging_config.py
+│   ├── monitoring.py
+│   ├── settings.py
+│   └── __pycache__/
+│       └── … (compiled files)
+├── data/
+│   ├── processed/
+│   │   └── anomalies.json
+│   │   └── structured_invoices.json
+│   ├── raw/
+│   │   └── invoices/ *pdfs
+│   │   └── test_invoice.txt
+│   │   └── vendor_data.csv
+│   ├── temp/
+│   │   └── … (temporary files)
+│   └── test_samples/
+│       └── … (sample faulty invoices for rag_helper.py)
+├── data_processing/
+│   ├── __init__.py
 │   ├── anomaly_detection.py
 │   ├── confidence_scoring.py
-│   └── rag_helper.py      # FAISS-based RAG
-│
-├── frontend/              # Streamlit Interface
-│   └── app.py            # Dashboard implementation
-│
-├── models/               # Data Models
-│   ├── invoice.py       # Pydantic models
-│   └── validation_schema.py
-│
-├── workflows/            # Process Orchestration
-│   └── orchestrator.py  # Pipeline management
-│
-└── tests/               # Testing Suite
-    ├── test_agents.py   
-    └── test_workflows.py
+│   ├── document_parser.py
+│   ├── ocr_helper.py
+│   ├── po_matcher.py
+│   ├── rag_helper.py
+│   └── __pycache__/
+│       └── … (compiled files)
+├── frontend/
+│   └── app.py
+├── models/
+│   ├── __init__.py
+│   ├── invoice.py
+│   ├── validation_schema.py
+│   └── __pycache__/
+│       └── … (compiled files)
+├── tests/
+│   ├── __init__.py
+│   ├── load_tests.py
+│   ├── test_agents.py
+│   ├── test_endpoints.py
+│   ├── test_frontend.js
+│   ├── test_utils.py
+│   └── test_workflows.py
+└── workflows/
+    ├── __init__.py
+    ├── orchestrator.py
+    ├── pipeline.py
+    └── __pycache__/
+        └── … (compiled files)
+
 ```
 
 ## 📅 Development Journey

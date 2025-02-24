@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt && rm -rf /root/.cache/pip
+
 COPY . .
 
 EXPOSE 8000 8501

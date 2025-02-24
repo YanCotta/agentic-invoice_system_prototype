@@ -76,13 +76,12 @@ async def upload_invoice(file: UploadFile = File(...)):
         with open(temp_path, "wb") as f:
             f.write(await file.read())
         result = await workflow.process_invoice(str(temp_path))
-        # Removing PDF copy to data/processed, only save extracted data
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing invoice: {str(e)}")
     finally:
         if temp_path.exists():
-            temp_path.unlink()  # Clean up temp file
+            temp_path.unlink()
 
 @app.get("/api/invoices")
 async def get_invoices():
@@ -105,45 +104,6 @@ async def get_invoices():
     except Exception as e:
         logger.error(f"Error fetching invoices: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to fetch invoices: {str(e)}")
-
-@app.put("/api/invoices/{invoice_number}")
-async def update_invoice(invoice_number: str, update_data: dict):
-    try:
-        if not OUTPUT_FILE.exists():
-            raise HTTPException(status_code=404, detail="No invoices found")
-        
-        with open(OUTPUT_FILE, "r") as f:
-            invoices = json.load(f)
-        
-        # Find and update the invoice
-        for i, inv in enumerate(invoices):
-            if inv.get("invoice_number") == invoice_number:
-                # Preserve certain fields that shouldn't be overwritten
-                preserved_fields = ["original_path", "extraction_time", "validation_time", "matching_time"]
-                for field in preserved_fields:
-                    if field in inv and field not in update_data:
-                        update_data[field] = inv[field]
-                
-                # Update resolution fields
-                if update_data.get("review_status") in ["approved", "rejected"]:
-                    update_data["resolution_date"] = datetime.now().isoformat()
-                    if "review_notes" in update_data:
-                        update_data["resolution_notes"] = update_data["review_notes"]
-                
-                # Update the invoice
-                invoices[i].update(update_data)
-                
-                # Write back to file
-                with open(OUTPUT_FILE, "w") as f:
-                    json.dump(invoices, f, indent=4)
-                
-                logger.info(f"Updated invoice {invoice_number} with review status: {update_data.get('review_status')}")
-                return {"message": "Updated successfully"}
-        
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    except Exception as e:
-        logger.error(f"Error updating invoice: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/process_all_invoices")
 async def process_all_invoices():

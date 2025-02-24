@@ -1,6 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from dotenv import load_dotenv  # Added dotenv loading
+import os
 import json
+
+load_dotenv()  # Load environment variables
 
 app = FastAPI(title="Invoice Human Review API")
 
@@ -51,4 +55,4 @@ async def submit_correction(correction: ReviewRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # Confirmed port 8000

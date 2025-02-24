@@ -8,6 +8,12 @@ services:
       - ./data:/app/data
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/invoices"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s  # Wait 30 seconds before starting healthchecks
 
   streamlit:
     build: .
@@ -19,4 +25,5 @@ services:
     environment:
       - API_URL=http://backend:8000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy

@@ -263,25 +263,26 @@ brim_invoice_streamlit/
 - 🎯 **Objectives Achieved**
   - Streamlined codebase by removing redundant files
   - Fixed backend startup issues
-  - Enhanced API reliability
+- Enhanced API reliability
   
 - 🔧 **Technical Improvements**
   1. **Backend Optimization**
-     - Merged review functionality into unified API
-     - Updated uvicorn startup configuration
-     - Simplified routing structure
+    - Merged review functionality into unified API
+    - Updated uvicorn startup configuration
+    - Simplified routing structure
   
   2. **Code Cleanup**
-     - Removed redundant `api/human_review_api.py`
-     - Consolidated workflow logic in `orchestrator.py`
-     - Updated all API references to use port 8000
+    - Removed redundant `api/human_review_api.py`
+    - Consolidated workflow logic in `orchestrator.py`
+    - Updated all API references to use port 8000
 
-## 🔧 Setup Guide
+## 🔧 Setup Guide (Dockerized)
 
 ### Prerequisites
-- Python 3.12+
-- Virtual environment tool
+- Docker
+- Docker Compose
 - Git
+- OpenAI API key
 - Sample data files
 
 ### Installation Steps
@@ -289,54 +290,55 @@ brim_invoice_streamlit/
 1. **Clone Repository**
    ```bash
    git clone <repository-url>
-   cd brim_invoice_project
+   cd brim_invoice_streamlit
    ```
 
-2. **Python Environment**
+2. **Create Environment File**
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   # OR
-   venv\Scripts\activate     # Windows
+   echo "OPENAI_API_KEY=your_api_key_here" > .env
    ```
 
-3. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   sudo apt-get install libblas-dev liblapack-dev
-   ```
-
-4. **Environment Setup**
-   ```bash
-   echo "OPENAI_API_KEY=your-api-key-here" > .env
-   ```
-
-5. **Data Verification**
+3. **Verify Sample Data**
    - Confirm presence of:
-     - PDFs in `data/raw/invoices/`
-     - Test files in `data/raw/test_samples/`
-     - `data/raw/vendor_data.csv`
+    - PDFs in `data/raw/invoices/` (e.g., sample invoices)
+    - Test files in `data/raw/test_samples/` (e.g., faulty invoices for RAG)
+    - `data/raw/vendor_data.csv`
+   - If missing, add sample PDFs and CSV as needed.
+
+4. **Build and Run**
+   ```bash
+   docker compose up --build -d
+   ```
+   Note: curl is required in the container for the healthcheck to function.
+
+5. **System Access**
+   - Frontend: http://localhost:8501
+   - API Endpoint: http://localhost:8000
 
 ## 🚀 Usage Guide
 
-### Starting Services
+### Core Workflows
 
-1. **Backend API**
-   ```bash
-   # Terminal 1: Main API
-   python -m uvicorn api.app:app --reload --port 8000
-   ```
+1. **Invoice Processing**
+   - Upload PDFs through the Streamlit interface
+   - Monitor processing status
+   - View extraction results
 
-2. **Frontend Application**
-   ```bash
-   # Terminal 2: Streamlit Interface
-   streamlit run frontend/app.py
-   ```
+2. **Results Management**
+   - View processed invoices on the "Invoices" page
+   - Review flagged items on the "Review" page
+   - Track performance metrics on the "Metrics" page
 
-### System Access
+3. **Review Process**
+   - Edit flagged invoices
+   - Submit corrections
+   - Verify changes
 
-- **Main Interface**: http://localhost:8501
-- **API Endpoint**: http://localhost:8000
+### Processing Logic
+- **Duplicate Detection**: Automatic flagging by invoice_number
+- **Confidence Thresholds**: ≥0.9 for auto-processing, <0.9 requires human review
+- **Processing Mode**: Asynchronous execution
+- **Data Persistence**: Full metrics and logging
 
 ### Core Workflows
 
@@ -355,14 +357,6 @@ brim_invoice_streamlit/
    - Submit corrections
    - Verify changes
 
-### Processing Logic
-
-- **Duplicate Detection**: Automatic flagging by invoice_number
-- **Confidence Thresholds**:
-  - ≥0.9: Automatic processing
-  - <0.9: Human review required
-- **Processing Mode**: Asynchronous execution
-- **Data Persistence**: Full metrics and logging
 
 ## 📈 Project Progress
 
@@ -374,6 +368,7 @@ brim_invoice_streamlit/
 - ✅ System optimizations
 - ✅ Backend stabilization and cleanup
 - ✅ Final stabilization and frontend improvements
+- ✅ Dockerized and implemented CI/CD
 
 #### Day 6: Final Stabilization and Frontend Fixes
 - 🎯 **Objectives Achieved**
@@ -387,10 +382,24 @@ brim_invoice_streamlit/
      - Improved progress tracking and status updates
      - Added batch operation error recovery
   
-  2. **Frontend Enhancements**
-     - Implemented better error messaging
-     - Added loading states for all operations
-     - Enhanced user feedback mechanisms
+- 🔧 **Technical Improvements**
+   2. **Frontend Enhancements**
+       - Implemented better error messaging
+       - Added loading states for all operations
+       - Enhanced user feedback mechanisms
+
+- 🎯 **Dockerization Complete**
+  - Fully Dockerized the Streamlit version with a multi-service setup (FastAPI backend and Streamlit frontend)
+  - Utilized a single `Dockerfile` for both services, orchestrated with `docker-compose.yml`
+  - Fixed healthcheck issue by adding `curl` to the `Dockerfile` for the `/api/invoices` endpoint check
+  - Confirmed all core features (single/batch invoice processing, review, metrics) work in the Dockerized environment
+  
+- 🔧 **Technical Implementation**
+  - Created `Dockerfile` with `python:3.12-slim`, `tesseract-ocr`, and `curl`
+  - Set up `docker-compose.yml` with separate `backend` and `streamlit` services
+  - Added healthcheck with 30s `start_period` to ensure backend readiness
+  - Successfully tested all functionalities in a containerized setup
+
   
 - 🚨 **Problems Encountered**
   - The 'View PDF' button may return 404 errors for batch-processed invoices due to filename mismatches in `data/raw/invoices/`
@@ -478,8 +487,6 @@ Estimated Timeline: 4-5 days for full implementation
 
 ### Remaining Tasks
 #### Day 7-10
-- Dockerization
-- CI/CD pipeline setup
 - Documentation and Video Demo
 - Delivery
 

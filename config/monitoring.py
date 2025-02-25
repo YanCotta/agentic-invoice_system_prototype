@@ -22,12 +22,24 @@ class Monitoring:
             logger.warning(f"No start time recorded for {module_name}")
             return 0.0
 
+    class TimerContext:
+        def __init__(self, monitoring, module_name):
+            self.monitoring = monitoring
+            self.module_name = module_name
+            self.duration = 0.0
+
+        def __enter__(self):
+            self.monitoring.start_timer(self.module_name)
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self.duration = self.monitoring.stop_timer(self.module_name)
+
     @contextmanager
     def timer(self, module_name: str):
         """Context manager for timing a block of code"""
+        timer_context = self.TimerContext(self, module_name)
         try:
-            self.start_timer(module_name)
-            yield
+            yield timer_context
         finally:
-            duration = self.stop_timer(module_name)
-            return duration
+            pass  # The __exit__ method of TimerContext handles stopping the timer

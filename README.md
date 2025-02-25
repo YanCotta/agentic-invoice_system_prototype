@@ -54,6 +54,7 @@ A sophisticated invoice processing system that leverages LangChain's multi-agent
 brim_invoice_streamlit/
 ├── Dockerfile
 ├── docker-compose.yml
+├── .dockerignore
 ├── main.py
 ├── README.md
 ├── requirements.txt

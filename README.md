@@ -49,7 +49,8 @@ A sophisticated invoice processing system that leverages LangChain's multi-agent
 ## 🏗️ Architecture
 
 ### Project Structure
-```
+
+```plaintext
 brim_invoice_streamlit/
 ├── Dockerfile
 ├── main.py
@@ -113,7 +114,8 @@ brim_invoice_streamlit/
 ```
 
 ### Architecture Diagram
-```
+
+```plaintext
 +-------------------+       +-------------------+
 |   Streamlit UI    |       |    Next.js UI     |
 | (Python-based)    |       | (Production-ready)|
@@ -227,6 +229,7 @@ flowchart TD
 ### Week 1: Core Development
 
 #### Day 1: Project Foundation
+
 - 🎯 **Objectives Achieved**
   - Created detailed 10-day roadmap
   - Analyzed technical requirements
@@ -246,6 +249,7 @@ flowchart TD
     - Grok3
 
 #### Day 2: Extraction & Validation
+
 - 🎯 **Objectives Achieved**
   - Built extraction pipeline
   - Implemented validation system
@@ -267,6 +271,7 @@ flowchart TD
      - Format consistency checks
 
 #### Day 3: Advanced Features
+
 - 🎯 **Objectives Achieved**
   - Enhanced error handling
   - Improved extraction accuracy
@@ -278,6 +283,7 @@ flowchart TD
   - Enhanced logging system
 
 #### Day 4: System Integration
+
 - 🎯 **Objectives Achieved**
   - Completed core functionality
   - Implemented frontend
@@ -289,6 +295,7 @@ flowchart TD
   - Streamlit dashboard
 
 #### Day 5: System Refinement
+
 - 🎯 **Objectives Achieved**
   - Fixed critical issues
   - Enhanced reliability
@@ -312,21 +319,22 @@ flowchart TD
      - Solution: Standardized processing
 
 #### Day 6: Project Refinement and Stabilization
+
 - 🎯 **Objectives Achieved**
   - Streamlined codebase by removing redundant files
   - Fixed backend startup issues
-- Enhanced API reliability
+  - Enhanced API reliability
   
 - 🔧 **Technical Improvements**
   1. **Backend Optimization**
-    - Merged review functionality into unified API
-    - Updated uvicorn startup configuration
-    - Simplified routing structure
+     - Merged review functionality into unified API
+     - Updated uvicorn startup configuration
+     - Simplified routing structure
   
   2. **Code Cleanup**
-    - Removed redundant `api/human_review_api.py`
-    - Consolidated workflow logic in `orchestrator.py`
-    - Updated all API references to use port 8000
+     - Removed redundant `api/human_review_api.py`
+     - Consolidated workflow logic in `orchestrator.py`
+     - Updated all API references to use port 8000
 
 - 🎯 **Dockerization Complete**
   - Fully Dockerized the Streamlit version with a multi-service setup (FastAPI backend and Streamlit frontend)
@@ -358,6 +366,7 @@ flowchart TD
 ## 🔧 Setup Guide (Dockerized)
 
 ### Prerequisites
+
 - Docker
 - Docker Compose
 - Git
@@ -367,11 +376,14 @@ flowchart TD
 ### Setup Guide (Dockerized)
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/yourusername/brim_invoice_streamlit.git
    cd brim_invoice_streamlit
+   ```
 
 2. **Create Environment File**
+
    ```bash
    echo "OPENAI_API_KEY=your_api_key_here" > .env
    ```
@@ -384,9 +396,11 @@ flowchart TD
    - If missing, add sample PDFs and CSV as needed.
 
 4. **Build and Run**
+
    ```bash
    docker compose up --build -d
    ```
+
    Note: curl is required in the container for the healthcheck to function.
 
 5. **System Access**
@@ -394,33 +408,20 @@ flowchart TD
    - API Endpoint: http://localhost:8000
 
 6. **Optional: Use pre-built Docker images:**
+
 Pull the images from Docker Hub:
+
 ```bash
 docker pull yancotta/brim_invoice_streamlit_backend:latest
 docker pull yancotta/brim_invoice_streamlit_streamlit:latest
 ```
+
 Edit docker-compose.yml to use these images instead of building locally (replace the build sections with image: yancotta/brim_invoice_streamlit_backend:latest, etc.).
 
 ## 🚀 Usage Guide
 
-### Core Workflows
-
-1. **Invoice Processing**
-   - Upload PDFs through the Streamlit interface
-   - Monitor processing status
-   - View extraction results
-
-2. **Results Management**
-   - View processed invoices on the "Invoices" page
-   - Review flagged items on the "Review" page
-   - Track performance metrics on the "Metrics" page
-
-3. **Review Process**
-   - Edit flagged invoices
-   - Submit corrections
-   - Verify changes
-
 ### Processing Logic
+
 - **Duplicate Detection**: Automatic flagging by invoice_number
 - **Confidence Thresholds**: ≥0.9 for auto-processing, <0.9 requires human review
 - **Processing Mode**: Asynchronous execution
@@ -443,10 +444,10 @@ Edit docker-compose.yml to use these images instead of building locally (replace
    - Submit corrections
    - Verify changes
 
-
 ## 📈 Project Progress
 
 ### Completed (Days 1-7)
+
 - ✅ Multi-agent system implementation
 - ✅ Streamlit frontend development
 - ✅ OpenAI API integration
@@ -460,11 +461,13 @@ Edit docker-compose.yml to use these images instead of building locally (replace
 ## 🔮 Future Enhancement: Database-Backed Invoice Management
 
 ### Context
+
 The current Streamlit system uses a file-based approach (`data/raw/invoices/`) for simplicity within the 10-day challenge. However, with 5,000 monthly invoices, a scalable database solution was considered to improve manageability and usability.
 
 ### Proposed Solution
 
 #### Architecture Components
+
 1. **Database Layer**
    - PostgreSQL for structured metadata storage
      - Invoice numbers, vendors, dates, totals
@@ -478,20 +481,22 @@ The current Streamlit system uses a file-based approach (`data/raw/invoices/`) f
    - Built-in versioning and backup capabilities
 
 #### Implementation Steps
+
 1. **Database Setup** (2 days)
-   ```sql
-   CREATE TABLE invoices (
-       id SERIAL PRIMARY KEY,
-       invoice_number VARCHAR(50) UNIQUE,
-       vendor_name VARCHAR(100),
-       issue_date DATE,
-       total_amount DECIMAL(10,2),
-       status VARCHAR(20),
-       confidence_score FLOAT,
-       pdf_url VARCHAR(255),
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-   );
-   ```
+
+```sql
+CREATE TABLE invoices (
+    id SERIAL PRIMARY KEY,
+    invoice_number VARCHAR(50) UNIQUE,
+    vendor_name VARCHAR(100),
+    issue_date DATE,
+    total_amount DECIMAL(10,2),
+    status VARCHAR(20),
+    confidence_score FLOAT,
+    pdf_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
 
 2. **Storage Configuration** (1 day)
    - S3 bucket setup with appropriate permissions
@@ -510,6 +515,7 @@ The current Streamlit system uses a file-based approach (`data/raw/invoices/`) f
    - Improve PDF preview and download
 
 ### Benefits
+
 - 📈 Scalability for thousands of invoices
 - 🔍 Enhanced search and filtering
 - 🔒 Improved security and access control
@@ -517,9 +523,11 @@ The current Streamlit system uses a file-based approach (`data/raw/invoices/`) f
 - 🔄 Reliable backup and recovery
 
 ### Why Not Implemented
+
 Time constraints within the 10-day challenge prioritized delivering a functional system. The modular design allows future database integration without significant refactoring.
 
 ### Implementation Roadmap
+
 1. **Phase 1**: Database Integration
    - Set up PostgreSQL
    - Migrate existing data
@@ -538,11 +546,14 @@ Time constraints within the 10-day challenge prioritized delivering a functional
 Estimated Timeline: 4-5 days for full implementation
 
 ### Remaining Tasks
+
 #### Day 7-10
+
 - Refine Documentation and Video Demo
 - Delivery
 
 ### Recent Improvements
+
 - 🆕 Enhanced file management
 - 🆕 Improved error handling
 - 🆕 Standardized currency handling
@@ -551,6 +562,7 @@ Estimated Timeline: 4-5 days for full implementation
 - 🆕 Streamlined API structure
 
 ### Known Issues
+
 - ⚠️ Metrics Page
   - Issue: TypeError in DataFrame display
   - Status: Fix in progress

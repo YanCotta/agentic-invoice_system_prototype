@@ -352,15 +352,19 @@ flowchart TD
   - The 'View PDF' button may return 404 errors for batch-processed invoices due to filename mismatches in `data/raw/invoices/`
   - Status: Workaround implemented using metadata from JSON files
 
-  ##### Processing Times Displaying as 0.00 Seconds
+### Known Issue: Processing Times Displaying as 0.00 Seconds
 
-- During manual testing on February 25, 2025, the Streamlit app’s Invoices and Metrics pages displayed all processing times (extraction, validation, matching, review, and total time) as 0.00 seconds, despite other functionalities (e.g., data extraction, review) working correctly.
+**Problem Encountered**: During testing on February 25, 2025, I noticed that all processing times (extraction, validation, matching, review, and total time) displayed as 0.00 seconds on both the Invoices and Metrics pages of the Streamlit frontend. This persisted across multiple invoices, despite other functionalities—such as invoice extraction, validation, matching, review, and confidence scoring—working correctly.
 
-**Troubleshooting Process**: Analyzed the timing capture in `workflows/orchestrator.py` and `config/monitoring.py`. Discovered that the `Monitoring.timer` context manager yielded no value, causing timing variables (`extraction_time`, etc.) to remain `None`. These were then defaulted to 0.0 when stored in `structured_invoices.json` and displayed as 0.00 seconds in the frontend. The issue stemmed from a design flaw in the context manager’s yield mechanism.
+**Troubleshooting Efforts**: I investigated the timing capture logic in `workflows/orchestrator.py` and `config/monitoring.py`. Initially, the `Monitoring.timer` context manager yielded no value, causing timing variables (e.g., `extraction_time`) to remain `None` and default to 0.0. I introduced a `TimerContext` class to capture durations via `__exit__`, and updated `process_invoice` to use `timer.duration`. However, this didn’t resolve the issue because the assignments were incorrectly placed inside the `with` blocks, capturing `0.0` before the duration was set.
 
-**Solution Implemented**: Modified `config/monitoring.py` to introduce a `TimerContext` class that calculates and stores durations via `__exit__`, yielding itself to provide access to the `duration` attribute. Updated `workflows/orchestrator.py` to capture timings using `timer.duration` (e.g., `extraction_time = timer.duration`) across all agent steps. This fix ensures accurate timing data is recorded without altering other system components. Verified that the change preserves existing functionality while displaying non-zero processing times.
+A subsequent fix moved these assignments outside the `with` blocks to capture the actual durations post-execution. While this approach was sound in theory, applying it inadvertently broke the system due to an indentation error: the `process_invoice` method was not properly nested under the `InvoiceProcessingWorkflow` class. This led to `AttributeError` exceptions when the backend attempted to call `workflow.process_invoice`, resulting in 500 Internal Server Errors and a non-functional system.
 
-**Outcome**: Post-fix, processing times are accurately captured and displayed (e.g., 1.23s instead of 0.00s), enhancing the system’s performance reporting capabilities.
+**Current Status**: Despite multiple attempts to correct the timing capture—including verifying the `TimerContext` implementation and adjusting indentation—the system ceased functioning after the latest fix. Logs indicate successful agent initialization and test sample processing, but the frontend reports "Failed to connect to the server," and invoice uploads fail. Due to time constraints within the 10-day technical challenge, I’ve decided to revert to the previous working version, where all core functionalities operate correctly except for the timing metrics.
+
+**Resolution**: For now, the processing times remain broken, displaying 0.00 seconds. This does not impact the system’s primary invoice processing capabilities, but it limits performance monitoring accuracy. A future fix would involve correctly indenting the `process_invoice` method under the class, ensuring atomic file writes to prevent JSON corruption (noted in logs as "JSON decode error"), and re-testing the timing capture logic. Given the project timeline, I’ve prioritized a fully functional system over perfecting this metric.
+
+**Next Steps**: Post-submission, I’d address this by isolating the timing logic in a separate test harness, ensuring proper class method scoping, and implementing robust file handling to avoid concurrency issues.
 
 ## 🔧 Setup Guide (Dockerized)
 

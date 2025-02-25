@@ -348,7 +348,6 @@ flowchart TD
   - Added healthcheck with 30s `start_period` to ensure backend readiness
   - Successfully tested all functionalities in a containerized setup
 
-  
 - 🚨 **Problems Encountered**
   - The 'View PDF' button may return 404 errors for batch-processed invoices due to filename mismatches in `data/raw/invoices/`
   - Status: Workaround implemented using metadata from JSON files
@@ -390,9 +389,9 @@ flowchart TD
 
 3. **Verify Sample Data**
    - Confirm presence of:
-    - PDFs in `data/raw/invoices/` (e.g., sample invoices)
-    - Test files in `data/raw/test_samples/` (e.g., faulty invoices for RAG)
-    - `data/raw/vendor_data.csv`
+   - PDFs in `data/raw/invoices/` (e.g., sample invoices)
+   - Test files in `data/raw/test_samples/` (e.g., faulty invoices for RAG)
+   - `data/raw/vendor_data.csv`
    - If missing, add sample PDFs and CSV as needed.
 
 4. **Build and Run**
@@ -404,8 +403,8 @@ flowchart TD
    Note: curl is required in the container for the healthcheck to function.
 
 5. **System Access**
-   - Frontend: http://localhost:8501
-   - API Endpoint: http://localhost:8000
+   - Frontend: <http://localhost:8501>
+   - API Endpoint: <http://localhost:8000>
 
 6. **Optional: Use pre-built Docker images:**
 

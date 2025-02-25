@@ -51,9 +51,10 @@ class InvoiceProcessingWorkflow:
         review_time = None
 
         try:
-            with monitoring.timer("extraction") as extraction_time:
+            with monitoring.timer("extraction") as timer:
                 extracted_data = await self._retry_with_backoff(lambda: self.extraction_agent.run(document_path))
                 logger.info(f"Extraction completed: {extracted_data}")
+                extraction_time = timer.duration
             
             # Ensure required fields are present with defaults
             extracted_dict = {
@@ -94,9 +95,10 @@ class InvoiceProcessingWorkflow:
             logger.info(f"Starting validation for invoice: {extracted_data.invoice_number}")
             logger.debug(f"Validation input data: {extracted_data.model_dump()}")
             
-            with monitoring.timer("validation") as validation_time:
+            with monitoring.timer("validation") as timer:
                 validation_result = await self._retry_with_backoff(lambda: self.validation_agent.run(extracted_data))
                 logger.info(f"Validation completed for invoice: {extracted_data.invoice_number}")
+                validation_time = timer.duration
                 logger.debug(f"Validation result: {validation_result.model_dump()}, time: {validation_time:.2f}s")
             
             # Update and save after validation
@@ -126,9 +128,10 @@ class InvoiceProcessingWorkflow:
             logger.info(f"Starting matching for invoice: {extracted_data.invoice_number}")
             logger.debug(f"Matching input data: {extracted_data.model_dump()}")
             
-            with monitoring.timer("matching") as matching_time:
+            with monitoring.timer("matching") as timer:
                 matching_result = await self._retry_with_backoff(lambda: self.matching_agent.run(extracted_data))
                 logger.info(f"Matching completed for invoice: {extracted_data.invoice_number}")
+                matching_time = timer.duration
                 logger.debug(f"Matching result: {matching_result}, time: {matching_time:.2f}s")
             
             # Update and save after matching
@@ -157,9 +160,10 @@ class InvoiceProcessingWorkflow:
 
         try:
             logger.info(f"Starting review for invoice: {extracted_data.invoice_number}")
-            with monitoring.timer("review") as review_time:
+            with monitoring.timer("review") as timer:
                 review_result = await self._retry_with_backoff(lambda: self.review_agent.run(extracted_data, validation_result))
                 logger.info(f"Review completed for invoice: {extracted_data.invoice_number}")
+                review_time = timer.duration
                 logger.debug(f"Review result: {review_result}, time: {review_time:.2f}s")
             
             # Calculate total time

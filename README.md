@@ -170,6 +170,57 @@ brim_invoice_streamlit/
                 +------+------+
 ```
 
+```
+flowchart TD
+    subgraph "Streamlit Frontend [Port: 8501]"
+        A1[Upload PDF<br>Single or Batch] --> A2[Real-Time Progress<br>via WebSockets]
+        A2 --> A3[Invoices Table<br>Vendor, Date, Total]
+        A3 --> A4[Review Panel<br>Edit Flagged Data]
+        A4 --> A5[Metrics Dashboard<br>Times, Error Rates]
+    end
+
+    subgraph "FastAPI Backend [Port: 8000]"
+        B1[API Endpoints<br>/upload, /invoices, /update] --> B2[WebSocket<br>/ws/process_progress]
+        B2 --> B3[Orchestrator<br>Coordinates Agents]
+    end
+
+    subgraph "Multi-Agent Workflow [LangChain]"
+        C1[Extraction Agent<br>gpt-4o-mini, pdfplumber] --> C2[Validation Agent<br>Pydantic, Anomalies]
+        C2 --> C3[PO Matching Agent<br>Fuzzy Matching, FAISS]
+        C3 --> C4{Human Review<br>Confidence < 0.9?}
+        C4 -->|Yes| C5[Human Review Agent<br>Manual Correction]
+        C4 -->|No| C6[Processed Output]
+        C5 --> C6
+    end
+
+    subgraph "Data Processing & Storage"
+        D1[RAG Helper<br>Error Classification] --> C3
+        D2[Raw PDFs<br>data/raw/invoices/] --> C1
+        C6 --> D3[Structured JSON<br>structured_invoices.json]
+        C3 --> D4[Vendor Data<br>vendor_data.csv]
+        C6 --> D5[Logs & Metrics<br>monitoring.py]
+    end
+
+    %% Connections
+    A1 --> B1
+    A2 --> B2
+    A3 --> B1
+    A4 --> B1
+    A5 --> B1
+    B3 --> C1
+    D1 --> C5
+    D5 --> A5
+
+    %% Styling
+    classDef frontend fill:#FF4B4B33,stroke:#FF4B4B;
+    classDef backend fill:#00968833,stroke:#009688;
+    classDef agents fill:#33CC3333,stroke:#33CC33;
+    classDef data fill:#41299133,stroke:#412991;
+    class A1,A2,A3,A4,A5 frontend;
+    class B1,B2,B3 backend;
+    class C1,C2,C3,C4,C5,C6 agents;
+    class D1,D2,D3,D4,D5 data;
+```
 
 ## 📅 Development Journey
 
@@ -187,9 +238,10 @@ brim_invoice_streamlit/
     - LangChain (0.2.16)
     - PDF processing tools
     - OCR capabilities
+
   - Reserved AI tools:
     - GPT-o3-mini
-    - Claude 3.5 Sonnet
+    - Claude 3.5 Sonnet / 3.7 Sonnet Thinking
     - GitHub Copilot
     - Grok3
 
@@ -275,6 +327,23 @@ brim_invoice_streamlit/
     - Removed redundant `api/human_review_api.py`
     - Consolidated workflow logic in `orchestrator.py`
     - Updated all API references to use port 8000
+
+- 🎯 **Dockerization Complete**
+  - Fully Dockerized the Streamlit version with a multi-service setup (FastAPI backend and Streamlit frontend)
+  - Utilized a single `Dockerfile` for both services, orchestrated with `docker-compose.yml`
+  - Fixed healthcheck issue by adding `curl` to the `Dockerfile` for the `/api/invoices` endpoint check
+  - Confirmed all core features (single/batch invoice processing, review, metrics) work in the Dockerized environment
+  
+- 🔧 **Technical Implementation**
+  - Created `Dockerfile` with `python:3.12-slim`, `tesseract-ocr`, and `curl`
+  - Set up `docker-compose.yml` with separate `backend` and `streamlit` services
+  - Added healthcheck with 30s `start_period` to ensure backend readiness
+  - Successfully tested all functionalities in a containerized setup
+
+  
+- 🚨 **Problems Encountered**
+  - The 'View PDF' button may return 404 errors for batch-processed invoices due to filename mismatches in `data/raw/invoices/`
+  - Status: Workaround implemented using metadata from JSON files
 
 ## 🔧 Setup Guide (Dockerized)
 
@@ -367,7 +436,7 @@ Edit docker-compose.yml to use these images instead of building locally (replace
 
 ## 📈 Project Progress
 
-### Completed (Days 1-6)
+### Completed (Days 1-7)
 - ✅ Multi-agent system implementation
 - ✅ Streamlit frontend development
 - ✅ OpenAI API integration
@@ -376,41 +445,7 @@ Edit docker-compose.yml to use these images instead of building locally (replace
 - ✅ Backend stabilization and cleanup
 - ✅ Final stabilization and frontend improvements
 - ✅ Dockerized and implemented CI/CD
-
-#### Day 6: Final Stabilization and Frontend Fixes
-- 🎯 **Objectives Achieved**
-  - Enhanced batch processing stability
-  - Improved frontend error handling
-  - Streamlined PDF viewing functionality
-  
-- 🔧 **Technical Improvements**
-  1. **Batch Processing**
-     - Enhanced queue management for multiple files
-     - Improved progress tracking and status updates
-     - Added batch operation error recovery
-  
-- 🔧 **Technical Improvements**
-   2. **Frontend Enhancements**
-       - Implemented better error messaging
-       - Added loading states for all operations
-       - Enhanced user feedback mechanisms
-
-- 🎯 **Dockerization Complete**
-  - Fully Dockerized the Streamlit version with a multi-service setup (FastAPI backend and Streamlit frontend)
-  - Utilized a single `Dockerfile` for both services, orchestrated with `docker-compose.yml`
-  - Fixed healthcheck issue by adding `curl` to the `Dockerfile` for the `/api/invoices` endpoint check
-  - Confirmed all core features (single/batch invoice processing, review, metrics) work in the Dockerized environment
-  
-- 🔧 **Technical Implementation**
-  - Created `Dockerfile` with `python:3.12-slim`, `tesseract-ocr`, and `curl`
-  - Set up `docker-compose.yml` with separate `backend` and `streamlit` services
-  - Added healthcheck with 30s `start_period` to ensure backend readiness
-  - Successfully tested all functionalities in a containerized setup
-
-  
-- 🚨 **Problems Encountered**
-  - The 'View PDF' button may return 404 errors for batch-processed invoices due to filename mismatches in `data/raw/invoices/`
-  - Status: Workaround implemented using metadata from JSON files
+- ✅ Finished documentation and testing
 
 ## 🔮 Future Enhancement: Database-Backed Invoice Management
 
@@ -494,7 +529,7 @@ Estimated Timeline: 4-5 days for full implementation
 
 ### Remaining Tasks
 #### Day 7-10
-- Documentation and Video Demo
+- Refine Documentation and Video Demo
 - Delivery
 
 ### Recent Improvements
@@ -518,4 +553,3 @@ Estimated Timeline: 4-5 days for full implementation
 **Built with ❤️ for the Technical Challenge**
 
 </div>
-

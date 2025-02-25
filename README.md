@@ -449,99 +449,53 @@ Edit docker-compose.yml to use these images instead of building locally (replace
 - ✅ OpenAI API integration
 - ✅ RAG-based error handling
 - ✅ System optimizations
-- ✅ Backend stabilization and cleanup
-- ✅ Final stabilization and frontend improvements
-- ✅ Dockerized and implemented CI/CD
+- ✅ Backend stabilization and cleanup  
+- ✅ Final stabilization and frontend improvements  
+- ✅ Dockerized and implemented CI/CD  
 - ✅ Finished documentation and testing
 
 ## 🔮 Future Enhancement: Database-Backed Invoice Management
 
 ### Context
-
-The current Streamlit system uses a file-based approach (`data/raw/invoices/`) for simplicity within the 10-day challenge. However, with 5,000 monthly invoices, a scalable database solution was considered to improve manageability and usability.
+The current system uses a file-based approach (`data/raw/invoices/`) for simplicity within the 10-day challenge. However, with an expected volume of 5,000 monthly invoices, a scalable database solution was considered during design to ensure long-term manageability.
 
 ### Proposed Solution
-
-#### Architecture Components
-
-1. **Database Layer**
-   - PostgreSQL for structured metadata storage
-     - Invoice numbers, vendors, dates, totals
-     - Processing status and validation results
-     - File references and timestamps
-   - Alternative: MongoDB for flexible document storage
-
-2. **Object Storage**
-   - AWS S3 or local file server for PDF storage
-   - Secure, scalable document management
-   - Built-in versioning and backup capabilities
+- **Database**: PostgreSQL for structured metadata (e.g., invoice numbers, vendors, totals) with fast querying.
+- **Storage**: AWS S3 or local file server for secure PDF storage and scalability.
 
 #### Implementation Steps
+1. **Database Setup** (2 days): Configure PostgreSQL with tables like:
+   ```sql
+   CREATE TABLE invoices (
+       id SERIAL PRIMARY KEY,
+       invoice_number VARCHAR(50) UNIQUE,
+       vendor_name VARCHAR(100),
+       total_amount DECIMAL(10,2),
+       status VARCHAR(20),
+       pdf_url VARCHAR(255)
+   );
+   ```
+2. **Storage Migration** (1 day): Move PDFs to S3, update `orchestrator.py` to store URLs.
+3. **App Integration** (2 days): Adapt `InvoiceProcessingWorkflow` to write to/read from the database instead of JSON files.
 
-1. **Database Setup** (2 days)
+#### Benefits
+- Scalability for thousands of invoices.
+- Enhanced search and reporting capabilities.
+- Improved security and redundancy.
 
-```sql
-CREATE TABLE invoices (
-    id SERIAL PRIMARY KEY,
-    invoice_number VARCHAR(50) UNIQUE,
-    vendor_name VARCHAR(100),
-    issue_date DATE,
-    total_amount DECIMAL(10,2),
-    status VARCHAR(20),
-    confidence_score FLOAT,
-    pdf_url VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+#### Why Not Implemented
+Time constraints prioritized a functional system within 10 days. The modular design (e.g., decoupling in `orchestrator.py`) ensures database integration requires minimal refactoring.
 
-2. **Storage Configuration** (1 day)
-- S3 bucket setup with appropriate permissions
-- Folder structure for invoice PDFs
-- Backup and retention policies
+#### Post-Submission Roadmap
+Post-delivery, a 5-day plan:
+- **Day 1-2**: Database setup and metadata migration.
+- **Day 3**: PDF storage integration.
+- **Day 4-5**: Update frontend (`app.py`) for DB-driven displays.
 
-3. **Application Updates** (1-2 days)
-   - Modify `app.py` for database operations
-   - Implement PDF storage and retrieval
-   - Update processing pipeline for new architecture
+#### Consideration
+Migrating existing JSON data to SQL might face schema mismatches; using a staging table for validation could mitigate this.
 
-4. **Frontend Enhancements**
-   - Add advanced search capabilities
-   - Implement filtering and sorting
-   - Enable bulk operations
-   - Improve PDF preview and download
-
-### Benefits
-
-- 📈 Scalability for thousands of invoices
-- 🔍 Enhanced search and filtering
-- 🔒 Improved security and access control
-- 📊 Better reporting capabilities
-- 🔄 Reliable backup and recovery
-
-### Why Not Implemented
-
-Time constraints within the 10-day challenge prioritized delivering a functional system. The modular design allows future database integration without significant refactoring.
-
-### Implementation Roadmap
-
-1. **Phase 1**: Database Integration
-   - Set up PostgreSQL
-   - Migrate existing data
-   - Update core processing logic
-
-2. **Phase 2**: Storage Migration
-   - Configure S3 storage
-   - Move PDFs to new storage
-   - Update file handling logic
-
-3. **Phase 3**: Frontend Enhancement
-   - Add database-driven features
-   - Implement advanced search
-   - Enhance user experience
-
-Estimated Timeline: 4-5 days for full implementation
-
-### Known Issue: Processing Times Displaying as 0.00 Seconds
+## Known Issue: Processing Times Displaying as 0.00 Seconds
 
 **Problem Encountered**: During testing on February 25, 2025, I noticed that all processing times (extraction, validation, matching, review, and total time) displayed as 0.00 seconds on both the Invoices and Metrics pages of the Streamlit frontend. This persisted across multiple invoices, despite other functionalities—such as invoice extraction, validation, matching, review, and confidence scoring—working correctly.
 

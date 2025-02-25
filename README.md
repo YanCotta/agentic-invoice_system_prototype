@@ -345,6 +345,16 @@ flowchart TD
   - The 'View PDF' button may return 404 errors for batch-processed invoices due to filename mismatches in `data/raw/invoices/`
   - Status: Workaround implemented using metadata from JSON files
 
+  ##### Processing Times Displaying as 0.00 Seconds
+
+- During manual testing on February 25, 2025, the Streamlit app’s Invoices and Metrics pages displayed all processing times (extraction, validation, matching, review, and total time) as 0.00 seconds, despite other functionalities (e.g., data extraction, review) working correctly.
+
+**Troubleshooting Process**: Analyzed the timing capture in `workflows/orchestrator.py` and `config/monitoring.py`. Discovered that the `Monitoring.timer` context manager yielded no value, causing timing variables (`extraction_time`, etc.) to remain `None`. These were then defaulted to 0.0 when stored in `structured_invoices.json` and displayed as 0.00 seconds in the frontend. The issue stemmed from a design flaw in the context manager’s yield mechanism.
+
+**Solution Implemented**: Modified `config/monitoring.py` to introduce a `TimerContext` class that calculates and stores durations via `__exit__`, yielding itself to provide access to the `duration` attribute. Updated `workflows/orchestrator.py` to capture timings using `timer.duration` (e.g., `extraction_time = timer.duration`) across all agent steps. This fix ensures accurate timing data is recorded without altering other system components. Verified that the change preserves existing functionality while displaying non-zero processing times.
+
+**Outcome**: Post-fix, processing times are accurately captured and displayed (e.g., 1.23s instead of 0.00s), enhancing the system’s performance reporting capabilities.
+
 ## 🔧 Setup Guide (Dockerized)
 
 ### Prerequisites

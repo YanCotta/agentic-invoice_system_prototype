@@ -170,7 +170,7 @@ brim_invoice_streamlit/
                 +------+------+
 ```
 
-```
+```mermaid
 flowchart TD
     subgraph "Streamlit Frontend [Port: 8501]"
         A1[Upload PDF<br>Single or Batch] --> A2[Real-Time Progress<br>via WebSockets]

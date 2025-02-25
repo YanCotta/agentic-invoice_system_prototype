@@ -22,29 +22,29 @@
 
 ## 🎯 Overview
 
-A sophisticated invoice processing system that leverages LangChain's multi-agent workflow to automate extraction, validation, and purchase order (PO) matching. Built as a technical challenge response, this solution aims to reduce manual processing time by 75% while maintaining high accuracy through intelligent error handling and human-in-the-loop review processes.
+A sophisticated invoice processing system that leverages LangChain's multi-agent workflow to automate extraction, validation, and purchase order (PO) matching. Built as a technical challenge for Brim's Agentic AI Engineer position, this solution aims to reduce manual processing time by over 75% while maintaining high accuracy through intelligent error handling and human-in-the-loop review processes.
 
 ## 📋 Key Features
 
 - **Intelligent Processing Pipeline**
   - Processes PDFs from:
     - `data/raw/invoices/` (35 invoices)
-    - `data/raw/test_samples/` (3 PDFs)
   - Multi-agent system for extraction, validation, and matching
-  - RAG-based error handling with FAISS
+  - RAG-based error handling with FAISS `data/raw/test_samples/` -> (5 faulty PDFs examples to reduce the need for human review)
   - Asynchronous processing with robust error management
 
 - **User-Friendly Interface**
   - Streamlit-powered dashboard
   - Real-time processing updates
   - Interactive invoice review system
-  - Performance metrics visualization
+  - Performance metrics visualization (one problem encountered and not solved mentioned below)
 
 - **Enterprise-Ready Architecture**
   - FastAPI backend infrastructure
   - Structured logging and monitoring
-  - Comprehensive test coverage
+  - Comprehensive test coverage (CI/CD)
   - Deployment-ready configuration
+  - Dockerized and with images ready in DockerHub
 
 ## 🏗️ Architecture
 
@@ -53,6 +53,7 @@ A sophisticated invoice processing system that leverages LangChain's multi-agent
 ```plaintext
 brim_invoice_streamlit/
 ├── Dockerfile
+├── docker-compose.yml
 ├── main.py
 ├── README.md
 ├── requirements.txt
@@ -74,8 +75,7 @@ brim_invoice_streamlit/
 │   ├── logging_config.py
 │   ├── monitoring.py
 │   ├── settings.py
-│   └── __pycache__/
-│       └── … (compiled files)
+│   
 ├── data/
 │   ├── processed/
 │   │   └── anomalies.json
@@ -95,25 +95,22 @@ brim_invoice_streamlit/
 │   ├── ocr_helper.py
 │   ├── po_matcher.py
 │   ├── rag_helper.py
-│   └── __pycache__/
-│       └── … (compiled files)
+│       
 ├── frontend/
 │   └── app.py
 ├── models/
 │   ├── __init__.py
 │   ├── invoice.py
 │   ├── validation_schema.py
-│   └── __pycache__/
-│       └── … (compiled files)
+│   
 └── workflows/
     ├── __init__.py
     ├── orchestrator.py
-    └── __pycache__/
-        └── … (compiled files)
+    
 
 ```
 
-### Architecture Diagram
+### Architecture Diagram (both project variants; different reps)
 
 ```plaintext
 +-------------------+       +-------------------+
@@ -241,6 +238,7 @@ flowchart TD
     - LangChain (0.2.16)
     - PDF processing tools
     - OCR capabilities
+    - others..
 
   - Reserved AI tools:
     - GPT-o3-mini
@@ -318,7 +316,7 @@ flowchart TD
      - Issue: Inconsistent data formats
      - Solution: Standardized processing
 
-#### Day 6: Project Refinement and Stabilization
+#### Day 6: More Project Refinement and Stabilization
 
 - 🎯 **Objectives Achieved**
   - Streamlined codebase by removing redundant files
@@ -352,19 +350,13 @@ flowchart TD
   - The 'View PDF' button may return 404 errors for batch-processed invoices due to filename mismatches in `data/raw/invoices/`
   - Status: Workaround implemented using metadata from JSON files
 
-### Known Issue: Processing Times Displaying as 0.00 Seconds
+#### Day 7: Comprehensive Testing & Documentation Refinement
 
-**Problem Encountered**: During testing on February 25, 2025, I noticed that all processing times (extraction, validation, matching, review, and total time) displayed as 0.00 seconds on both the Invoices and Metrics pages of the Streamlit frontend. This persisted across multiple invoices, despite other functionalities—such as invoice extraction, validation, matching, review, and confidence scoring—working correctly.
-
-**Troubleshooting Efforts**: I investigated the timing capture logic in `workflows/orchestrator.py` and `config/monitoring.py`. Initially, the `Monitoring.timer` context manager yielded no value, causing timing variables (e.g., `extraction_time`) to remain `None` and default to 0.0. I introduced a `TimerContext` class to capture durations via `__exit__`, and updated `process_invoice` to use `timer.duration`. However, this didn’t resolve the issue because the assignments were incorrectly placed inside the `with` blocks, capturing `0.0` before the duration was set.
-
-A subsequent fix moved these assignments outside the `with` blocks to capture the actual durations post-execution. While this approach was sound in theory, applying it inadvertently broke the system due to an indentation error: the `process_invoice` method was not properly nested under the `InvoiceProcessingWorkflow` class. This led to `AttributeError` exceptions when the backend attempted to call `workflow.process_invoice`, resulting in 500 Internal Server Errors and a non-functional system.
-
-**Current Status**: Despite multiple attempts to correct the timing capture—including verifying the `TimerContext` implementation and adjusting indentation—the system ceased functioning after the latest fix. Logs indicate successful agent initialization and test sample processing, but the frontend reports "Failed to connect to the server," and invoice uploads fail. Due to time constraints within the 10-day technical challenge, I’ve decided to revert to the previous working version, where all core functionalities operate correctly except for the timing metrics.
-
-**Resolution**: For now, the processing times remain broken, displaying 0.00 seconds. This does not impact the system’s primary invoice processing capabilities, but it limits performance monitoring accuracy. A future fix would involve correctly indenting the `process_invoice` method under the class, ensuring atomic file writes to prevent JSON corruption (noted in logs as "JSON decode error"), and re-testing the timing capture logic. Given the project timeline, I’ve prioritized a fully functional system over perfecting this metric.
-
-**Next Steps**: Post-submission, I’d address this by isolating the timing logic in a separate test harness, ensuring proper class method scoping, and implementing robust file handling to avoid concurrency issues.
+- 🎯 **Objectives Achieved**
+  - Comprehensive manual tests
+  - CI/CDing
+  - Refinement of documentations
+  - Creation of demo video
 
 ## 🔧 Setup Guide (Dockerized)
 
@@ -502,9 +494,9 @@ CREATE TABLE invoices (
 ```
 
 2. **Storage Configuration** (1 day)
-   - S3 bucket setup with appropriate permissions
-   - Folder structure for invoice PDFs
-   - Backup and retention policies
+- S3 bucket setup with appropriate permissions
+- Folder structure for invoice PDFs
+- Backup and retention policies
 
 3. **Application Updates** (1-2 days)
    - Modify `app.py` for database operations
@@ -548,6 +540,20 @@ Time constraints within the 10-day challenge prioritized delivering a functional
 
 Estimated Timeline: 4-5 days for full implementation
 
+### Known Issue: Processing Times Displaying as 0.00 Seconds
+
+**Problem Encountered**: During testing on February 25, 2025, I noticed that all processing times (extraction, validation, matching, review, and total time) displayed as 0.00 seconds on both the Invoices and Metrics pages of the Streamlit frontend. This persisted across multiple invoices, despite other functionalities—such as invoice extraction, validation, matching, review, and confidence scoring—working correctly.
+
+**Troubleshooting Efforts**: I investigated the timing capture logic in `workflows/orchestrator.py` and `config/monitoring.py`. Initially, the `Monitoring.timer` context manager yielded no value, causing timing variables (e.g., `extraction_time`) to remain `None` and default to 0.0. I introduced a `TimerContext` class to capture durations via `__exit__`, and updated `process_invoice` to use `timer.duration`. However, this didn’t resolve the issue because the assignments were incorrectly placed inside the `with` blocks, capturing `0.0` before the duration was set.
+
+A subsequent fix moved these assignments outside the `with` blocks to capture the actual durations post-execution. While this approach was sound in theory, applying it inadvertently broke the system due to an indentation error: the `process_invoice` method was not properly nested under the `InvoiceProcessingWorkflow` class. This led to `AttributeError` exceptions when the backend attempted to call `workflow.process_invoice`, resulting in 500 Internal Server Errors and a non-functional system.
+
+**Current Status**: Despite multiple attempts to correct the timing capture—including verifying the `TimerContext` implementation and adjusting indentation—the system ceased functioning after the latest fix. Logs indicate successful agent initialization and test sample processing, but the frontend reports "Failed to connect to the server," and invoice uploads fail. Due to time constraints within the 10-day technical challenge, I’ve decided to revert to the previous working version, where all core functionalities operate correctly except for the timing metrics.
+
+**Resolution**: For now, the processing times remain broken, displaying 0.00 seconds. This does not impact the system’s primary invoice processing capabilities, but it limits performance monitoring accuracy. A future fix would involve correctly indenting the `process_invoice` method under the class, ensuring atomic file writes to prevent JSON corruption (noted in logs as "JSON decode error"), and re-testing the timing capture logic. Given the project timeline, I’ve prioritized a fully functional system over perfecting this metric.
+
+**Next Steps**: Post-submission, I’d address this by isolating the timing logic in a separate test harness, ensuring proper class method scoping, and implementing robust file handling to avoid concurrency issues.
+
 ### Remaining Tasks
 
 #### Day 7-10
@@ -555,26 +561,10 @@ Estimated Timeline: 4-5 days for full implementation
 - Refine Documentation and Video Demo
 - Delivery
 
-### Recent Improvements
-
-- 🆕 Enhanced file management
-- 🆕 Improved error handling
-- 🆕 Standardized currency handling
-- 🆕 Optimized processing pipeline
-- 🆕 Fixed backend startup by updating uvicorn configuration
-- 🆕 Streamlined API structure
-
-### Known Issues
-
-- ⚠️ Metrics Page
-  - Issue: TypeError in DataFrame display
-  - Status: Fix in progress
-  - Workaround: Default to 0.0 for null values
-
 ---
 
 <div align="center">
 
-**Built with ❤️ for the Technical Challenge**
+**Built with ❤️ for Brim's Technical Challenge**
 
 </div>

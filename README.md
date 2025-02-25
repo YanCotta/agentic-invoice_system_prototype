@@ -285,13 +285,12 @@ brim_invoice_streamlit/
 - OpenAI API key
 - Sample data files
 
-### Installation Steps
+### Setup Guide (Dockerized)
 
-1. **Clone Repository**
+1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/yourusername/brim_invoice_streamlit.git
    cd brim_invoice_streamlit
-   ```
 
 2. **Create Environment File**
    ```bash
@@ -314,6 +313,14 @@ brim_invoice_streamlit/
 5. **System Access**
    - Frontend: http://localhost:8501
    - API Endpoint: http://localhost:8000
+
+6. **Optional: Use pre-built Docker images:**
+Pull the images from Docker Hub:
+```bash
+docker pull yancotta/brim_invoice_streamlit_backend:latest
+docker pull yancotta/brim_invoice_streamlit_streamlit:latest
+```
+Edit docker-compose.yml to use these images instead of building locally (replace the build sections with image: yancotta/brim_invoice_streamlit_backend:latest, etc.).
 
 ## 🚀 Usage Guide
 

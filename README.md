@@ -111,7 +111,7 @@ brim_invoice_streamlit/
 
 ```
 
-### Architecture Diagram (both project variants; different reps)
+### Architecture Diagram - This diagram represents the Streamlit version’s architecture (shared backend with the Next.js variant, differing only in frontend)
 
 ```plaintext
 +-------------------+       +-------------------+
@@ -454,47 +454,6 @@ Edit docker-compose.yml to use these images instead of building locally (replace
 - ✅ Dockerized and implemented CI/CD  
 - ✅ Finished documentation and testing
 
-## 🔮 Future Enhancement: Database-Backed Invoice Management
-
-### Context
-The current system uses a file-based approach (`data/raw/invoices/`) for simplicity within the 10-day challenge. However, with an expected volume of 5,000 monthly invoices, a scalable database solution was considered during design to ensure long-term manageability.
-
-### Proposed Solution
-- **Database**: PostgreSQL for structured metadata (e.g., invoice numbers, vendors, totals) with fast querying.
-- **Storage**: AWS S3 or local file server for secure PDF storage and scalability.
-
-#### Implementation Steps
-1. **Database Setup** (2 days): Configure PostgreSQL with tables like:
-   ```sql
-   CREATE TABLE invoices (
-       id SERIAL PRIMARY KEY,
-       invoice_number VARCHAR(50) UNIQUE,
-       vendor_name VARCHAR(100),
-       total_amount DECIMAL(10,2),
-       status VARCHAR(20),
-       pdf_url VARCHAR(255)
-   );
-   ```
-2. **Storage Migration** (1 day): Move PDFs to S3, update `orchestrator.py` to store URLs.
-3. **App Integration** (2 days): Adapt `InvoiceProcessingWorkflow` to write to/read from the database instead of JSON files.
-
-#### Benefits
-- Scalability for thousands of invoices.
-- Enhanced search and reporting capabilities.
-- Improved security and redundancy.
-
-#### Why Not Implemented
-Time constraints prioritized a functional system within 10 days. The modular design (e.g., decoupling in `orchestrator.py`) ensures database integration requires minimal refactoring.
-
-#### Post-Submission Roadmap
-Post-delivery, a 5-day plan:
-- **Day 1-2**: Database setup and metadata migration.
-- **Day 3**: PDF storage integration.
-- **Day 4-5**: Update frontend (`app.py`) for DB-driven displays.
-
-#### Consideration
-Migrating existing JSON data to SQL might face schema mismatches; using a staging table for validation could mitigate this.
-
 ## Known Issue: Processing Times Displaying as 0.00 Seconds
 
 **Problem Encountered**: During testing on February 25, 2025, I noticed that all processing times (extraction, validation, matching, review, and total time) displayed as 0.00 seconds on both the Invoices and Metrics pages of the Streamlit frontend. This persisted across multiple invoices, despite other functionalities—such as invoice extraction, validation, matching, review, and confidence scoring—working correctly.
@@ -508,13 +467,6 @@ A subsequent fix moved these assignments outside the `with` blocks to capture th
 **Resolution**: For now, the processing times remain broken, displaying 0.00 seconds. This does not impact the system’s primary invoice processing capabilities, but it limits performance monitoring accuracy. A future fix would involve correctly indenting the `process_invoice` method under the class, ensuring atomic file writes to prevent JSON corruption (noted in logs as "JSON decode error"), and re-testing the timing capture logic. Given the project timeline, I’ve prioritized a fully functional system over perfecting this metric.
 
 **Next Steps**: Post-submission, I’d address this by isolating the timing logic in a separate test harness, ensuring proper class method scoping, and implementing robust file handling to avoid concurrency issues.
-
-### Remaining Tasks
-
-#### Day 7-10
-
-- Refine Documentation and Video Demo
-- Delivery
 
 ---
 

@@ -23,20 +23,21 @@
 ## Overview
 
 This sophisticated invoice processing system, initially developed as a prototype for Brim’s Agentic AI Engineer technical challenge, leverages LangChain’s multi-agent workflow to automate extraction, validation, and purchase order (PO) matching. Designed to reduce manual processing time by over 75%, it ensures high accuracy through intelligent error handling and human-in-the-loop review processes. A standout feature is the implementation of Retrieval-Augmented Classification (RAC)—an adaptation of RAG—using FAISS with data/raw/test_samples/ (5 faulty PDFs) to minimize human intervention by classifying and resolving common errors autonomously.
+
 The project evolved in phases:
-Prototype (Streamlit Version): A lightweight, Streamlit-based solution for small-scale local enterprises, relying on local JSON storage (structured_invoices.json) for quick deployment and testing.
 
-Next.js Version: A robust iteration with a modern Next.js frontend, enhancing the UI with real-time WebSocket updates and maintaining JSON storage for simplicity.
+- Prototype (Streamlit Version): A lightweight, Streamlit-based solution for small-scale local enterprises, relying on local JSON storage (structured_invoices.json) for quick deployment and testing.
 
-Scalable Version (feature/database-integration Branch): The current, production-ready state, integrating SQLite (invoices.db) for efficient metadata management and AWS S3 for scalable PDF storage. While PostgreSQL was considered for larger-scale needs (e.g., 5,000+ invoices/month), SQLite was chosen as sufficient for the target volume of 5,000 invoices/month.
+- Next.js Version: A robust iteration with a modern Next.js frontend, enhancing the UI with real-time WebSocket updates and maintaining JSON storage for simplicity.
+
+- Scalable Version (feature/database-integration Branch): The current, production-ready state, integrating SQLite (invoices.db) for efficient metadata management and AWS S3 for scalable PDF storage. While PostgreSQL was considered for larger-scale needs (e.g., 5,000+ invoices/month), SQLite was chosen as sufficient for the target volume of 5,000 invoices/month.
 
 This staged approach—starting small, iterating to a functional Next.js system, and scaling with cloud and database technologies—demonstrates a practical path from prototype to enterprise-ready solution.
-
 
 ## 📋 Key Features
 
 - **Intelligent Processing Pipeline**
-  - Processes PDFs from:
+  - Processes PDFs from local folder:
     - `data/raw/invoices/` (35 invoices)
   - Multi-agent system for extraction, validation, and matching
   - RAG-based error handling with FAISS `data/raw/test_samples/` -> (5 faulty PDFs examples to reduce the need for human review)
@@ -46,7 +47,7 @@ This staged approach—starting small, iterating to a functional Next.js system,
   - Streamlit-powered dashboard
   - Real-time processing updates
   - Interactive invoice review system
-  - Performance metrics visualization (one problem encountered and not solved mentioned below)
+  - Performance metrics visualization (one problem encountered and not solved mentioned in the last section of this readme)
 
 - **Enterprise-Ready Architecture**
   - FastAPI backend infrastructure
@@ -120,23 +121,21 @@ brim_invoice_streamlit/
 
 ```
 
-### Architecture Diagram - This diagram represents the Streamlit version’s architecture (shared backend with the Next.js variant, differing only in frontend)
+### Architecture Diagram - This diagram represents the Streamlit version’s architecture 
 
 ```plaintext
-+-------------------+       +-------------------+
-|   Streamlit UI    |       |    Next.js UI     |
-| (Python-based)    |       | (Production-ready)|
-| - Streamlit       |       | - React, Next.js  |
-|   Dashboard       |       | - Tailwind CSS    |
-+-------------------+       +-------------------+
-           |                         |
-           +-----------+-------------+
+             +-------------------+       
+             |   Streamlit UI    |      
+             | (Python-based)    |       
+             | - Streamlit       |       
+             |   Dashboard       |       
+             +-------------------+       
+                       |                      
+                       +
                        |
                 +------+------+
                 | FastAPI     |
                 | Backend     |
-                | - WebSocket |
-                |   Support   |
                 +------+------+
                        |
            +-----------+-------------+
@@ -250,7 +249,7 @@ flowchart TD
     - OCR capabilities
     - others..
 
-  - Reserved AI tools:
+  - Reserved LLMs tools:
     - GPT-o3-mini
     - Claude 3.5 Sonnet / 3.7 Sonnet Thinking
     - GitHub Copilot
@@ -326,7 +325,7 @@ flowchart TD
      - Issue: Inconsistent data formats
      - Solution: Standardized processing
 
-#### Day 6: More Project Refinement and Stabilization
+#### Day 6: Final Project Refinement and Stabilization
 
 - 🎯 **Objectives Achieved**
   - Streamlined codebase by removing redundant files
@@ -364,7 +363,7 @@ flowchart TD
 
 - 🎯 **Objectives Achieved**
   - Comprehensive manual tests
-  - CI/CDing
+  - CI/CD Implementation
   - Refinement of documentations
   - Creation of demo video
 
@@ -383,7 +382,7 @@ flowchart TD
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/yourusername/brim_invoice_streamlit.git
+   git clone https://github.com/YanCotta/brim_invoice_streamlit.git
    cd brim_invoice_streamlit
    ```
 
